@@ -1,6 +1,6 @@
 {
   "name": "mwalimu-pos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
   "main": "electron/main.js",
   "scripts": {
