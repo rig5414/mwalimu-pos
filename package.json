@@ -21,7 +21,8 @@
     "date-fns": "^3.3.1",
     "uuid": "^9.0.0",
     "node-thermal-printer": "^4.4.1",
-    "clsx": "^2.1.0"
+    "clsx": "^2.1.0",
+    "electron-updater": "^6.1.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
@@ -47,6 +48,11 @@
       "node_modules/better-sqlite3/**/*",
       "node_modules/node-thermal-printer/**/*"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "rig5414",
+      "repo": "mwalimu-pos"
+    },
     "win": {
       "target": "nsis",
       "icon": "public/icon.ico"

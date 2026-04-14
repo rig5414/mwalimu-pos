@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
+const { autoUpdater } = require('electron-updater')
 const path = require('path')
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
@@ -58,6 +59,13 @@ app.whenReady().then(() => {
   initDB()
   createWindow()
   registerIPCHandlers()
+
+  // ── Auto-update check (only in production) ──
+  if (!isDev) {
+    autoUpdater.checkForUpdatesAndNotify().catch(err => {
+      console.log('Update check failed:', err)
+    })
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
