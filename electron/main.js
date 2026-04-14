@@ -32,15 +32,12 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: 'Mwalimu Uniforms POS',
-    // icon: path.join(__dirname, '../public/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,   // security: on
       nodeIntegration: false,   // security: off
       sandbox: false,
     },
-    // Good for touch tablets — hides default titlebar in production
-    // frame: !isDev,
     autoHideMenuBar: !isDev,
   })
 
@@ -48,7 +45,13 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    const indexPath = path.join(__dirname, '../dist/index.html')
+    mainWindow.loadFile(indexPath)
+      .catch(err => {
+        console.error('Failed to load app:', err)
+        console.log('Trying alternative path...')
+        mainWindow.loadFile(path.join(app.getAppPath(), 'dist/index.html'))
+      })
   }
 
   mainWindow.on('closed', () => { mainWindow = null })
