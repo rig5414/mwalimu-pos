@@ -1,6 +1,6 @@
 {
   "name": "mwalimu-pos",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
   "author": "Manasseh Telle",
   "main": "electron/main.js",
