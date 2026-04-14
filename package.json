@@ -2,6 +2,7 @@
   "name": "mwalimu-pos",
   "version": "1.0.1",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
+  "author": "Manasseh Telle",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm run vite\" \"npm run electron:dev\"",
@@ -54,12 +55,10 @@
       "repo": "mwalimu-pos"
     },
     "win": {
-      "target": "nsis",
-      "icon": "public/icon.ico"
+      "target": "nsis"
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "public/icon.png"
+      "target": "AppImage"
     },
     "nsis": {
       "oneClick": false,
