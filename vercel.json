@@ -1,4 +1,4 @@
 {
-  "outputDirectory": "public",
-  "cleanUrls": true
+  "buildCommand": "echo 'Deploying static files'",
+  "outputDirectory": "public"
 }
