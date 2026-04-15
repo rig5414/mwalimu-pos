@@ -1,0 +1,217 @@
+📊 PROJECT STATUS
+Current Version: v1.0.3
+Current Phase: Phase 2 (In Progress)
+Repository: https://github.com/rig5414/mwalimu-pos
+Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
+Last Updated: 2026-04-15
+
+✅ COMPLETED (Phase 1)
+Infrastructure & DevOps
+✅ Full React 18 + Electron 29 scaffold
+✅ SQLite database with schema + seed data (users, categories, products, variants, sales, clients)
+✅ Electron IPC bridge (window.api) for secure React → SQLite communication
+✅ Dev fallback pattern (dummy data for browser dev mode at npm run vite)
+✅ GitHub Pages deployment for download page
+✅ GitHub Actions workflow for automated builds on version tags
+✅ electron-updater integration for automatic app updates
+✅ HashRouter for Electron file:// protocol compatibility
+UI/Layout (All Scaffolded)
+✅ LoginPage with admin/shopkeeper role selection
+✅ ShopkeeperLayout (topbar + nav)
+✅ POSPage (main sales interface - category/product browser + cart)
+✅ CartPanel (right-side cart with qty controls, totals, checkout)
+✅ VariantModal (color/size picker)
+✅ PaymentModal (cash/M-Pesa/card UI)
+✅ ReceiptModal (receipt display + print trigger)
+✅ AdminLayout, DashboardPage, SalesPage, StockPage, UsersPage
+✅ Design system (colors, fonts, Tailwind custom classes)
+Authentication & Authorization
+✅ PIN-based login (SHA-256 hashed)
+✅ Role-based route guards (Require component)
+✅ Zustand auth store with demo fallback
+✅ Default users: admin/9999, shopkeeper/1234
+Database
+✅ SQLite schema (users, categories, products, product_variants, stock_movements, clients, sales, sale_items, sync_log)
+✅ Seed data: 5 categories, 6 products with variants, 3 clients, 5 sample sales
+✅ Transactional sales (atomic multi-step inserts)
+✅ Low stock detection
+Known Workarounds/Fixes
+⚠️ Removed "type": "module" from package.json (was causing CommonJS/ESM conflict)
+⚠️ Removed icon references from electron-builder config (icon files didn't exist)
+⚠️ Fixed React Router: switched BrowserRouter → HashRouter for file:// protocol
+⚠️ GitHub Actions build disabled (native module compilation issues); use manual local build instead
+🔜 REMAINING (Phase 2 onwards)
+Phase 2 (Next Priority)
+Barcode Scanner Handler
+
+Add keydown listener in POSPage.jsx
+Accumulate rapid keystrokes, trigger on Enter
+Auto-lookup product by barcode, open VariantModal
+Handle no-match gracefully (toast notification)
+Product Management UI (admin only)
+
+New page: /admin/products
+Add product, edit product, delete product, toggle active/inactive
+Add variants to existing product (color + size + stock)
+Form validation
+Category Management UI (admin only)
+
+New page: /admin/categories
+Add, edit, delete, reorder categories
+Cascade delete/archive handling
+Toast Notification System (Foundation for all)
+
+Create useToast hook
+Create ToastContainer component (bottom-center, auto-dismiss)
+Replace all alert() calls with toasts
+Variants: success, error, warning, info
+Expand Dummy Data
+
+MORE realistic products in DUMMY_PRODUCTS / DUMMY_VARIANTS (POSPage.jsx, other pages)
+Real Kenyan uniform names, prices in KES, realistic sizes
+More sample clients, sales
+Phase 3
+Wire SQLite: connect all window.api calls to real DB (currently mostly stubbed with dummy data)
+Remove dummy data fallbacks
+Test full CRUD flow
+Phase 4
+UI/UX refinement
+Tablet touch optimization
+Loading states, error states
+Input validation, error messages
+Phase 5+
+IMS (inventory management): audit trail UI, stock history, low stock settings
+Live stock deduction on POS
+Cloud sync (Supabase, Phase 7)
+Reports & analytics (Phase 8)
+Thermal printer integration (Phase 9)
+Payment gateways (M-Pesa STK, card terminal, Phase 10)
+🏗️ ARCHITECTURE
+Tech Stack (Locked In)
+Frontend: React 18 + Vite + React Router v6 + Zustand
+Desktop: Electron 29
+Styling: Tailwind CSS v3 + custom globals.css
+Database: SQLite (better-sqlite3)
+IPC: Electron contextBridge
+Build: electron-builder + GitHub Actions
+Updates: electron-updater
+Project Structure
+mwalimu-pos/
+├── electron/
+│   ├── main.js              # Electron main process + app lifecycle
+│   ├── preload.js           # IPC bridge (window.api)
+│   ├── db/migrate.js        # SQLite schema + seed
+│   └── ipc/handlers.js      # All DB operations
+├── src/
+│   ├── main.jsx             # React entry (HashRouter)
+│   ├── App.jsx              # Route definitions + Require guard
+│   ├── store/               # Zustand: authStore, cartStore
+│   ├── pages/               # All page components
+│   ├── components/pos/      # CartPanel, VariantModal, PaymentModal, ReceiptModal
+│   └── styles/globals.css   # Custom Tailwind classes
+├── public/                  # download.html, assets
+├── package.json             # Scripts: dev, build:win, build:linux
+├── vite.config.js
+├── tailwind.config.js
+└── .github/workflows/release.yml  # GitHub Actions
+
+IPC Pattern (React → SQLite)
+React Component:
+  const res = await window.api.products.getAll({ filters })
+  if (!res.ok) throw new Error(res.error)
+  const data = res.data
+
+Main Process (handlers.js):
+  ipcMain.handle('products:getAll', (event, filters) => {
+    return db.prepare(...).all()  // Raw data, auto-wrapped as { ok, data }
+  })
+
+Dev Fallback Pattern
+All components that call window.api must check if (window.api) and provide dummy data fallback for browser dev mode.
+
+🚀 DEPLOYMENT & RELEASE PROCESS
+Current Workflow
+Local Build:
+
+
+npm run build:win  # Creates dist-electron/Mwalimu POS Setup*.exe
+GitHub Release (Manual):
+
+Go to repo → Releases → "Create new release"
+Tag: v1.0.3(incrementing on every release hence the newest release would be v1.0.4 nd so forth)
+Upload .exe file
+Publish
+Download Page Updates Automatically:
+
+GitHub Pages serves public/download.html
+Page fetches latest release from GitHub API
+Users download and install
+Automatic Updates:
+
+App checks for updates on startup (electron-updater)
+Shows notification if new version available
+User clicks "Update" to download & install
+GitHub Actions (Currently Disabled)
+.github/workflows/release.yml tries to auto-build on tags
+Issue: better-sqlite3 native module compilation fails in Actions environment
+Workaround: Build locally, upload manually (as above)
+🐛 KNOWN ISSUES & WORKAROUNDS
+Issue	Status	Workaround
+GitHub Actions build fails (better-sqlite3 C++ compilation)	Open	Build locally: npm run build:win
+Icons missing from executable	Closed	Removed icon refs from electron-builder config
+App showed blank white page	Closed	Switched BrowserRouter → HashRouter
+Vercel deployment doesn't work	Closed	Use GitHub Pages instead (static site)
+Module type warnings	Active	Not critical; can add "type": "module" and refactor to ESM if needed
+📝 CODING STANDARDS (MANDATORY)
+Functional components only — no class components
+Async/await — no .then() chains
+Error handling: if (!res.ok) throw new Error(res.error) on every window.api call
+IPC calls must have fallback: if (window.api) { ... } else { /* dummy data */ }
+Dummy data at top of file — realistic Kenyan prices, real product names
+No hardcoded colors — use Tailwind classes only
+Transactions for multi-step writes: db.transaction(() => { ... })()
+UUIDs for all IDs: const { v4: uuidv4 } = require('uuid')
+Timestamps UTC: datetime('now') in SQLite, format on display in JS
+🎨 DESIGN SYSTEM
+Colors
+Primary: #1a3a5c (navy)
+Accent: #e8a020 (amber)
+Surfaces: white, #f0f2f5, #f4f6f9
+Fonts
+Headings: Space Grotesk
+Body: DM Sans
+Code/Receipt: JetBrains Mono
+Custom Classes
+.btn-primary, .btn-secondary, .btn-danger
+.card, .input, .label, .badge, .badge-success, .badge-danger, .badge-warning, .badge-info
+📋 NEXT STEPS (IMMEDIATE)
+Test v1.0.2 on remote device — verify login page loads, routing works
+Start Phase 2 tasks in priority order:
+Toast system (foundation)
+Barcode scanner handler
+Product/category management
+Expanded dummy data
+Commit & release frequently — tag each feature: v1.0.3, v1.0.4, etc.
+User feedback — test with actual shopkeeper, gather usability notes
+📞 SUPPORT CONTEXT
+Owner/Client: Mwalimu Uniforms (Mombasa, Kenya)
+User Base: Shopkeepers (POS) + Owner/Admin (full system)
+Hardware: Windows 10/11 tablet, optional thermal printer, optional USB barcode scanner
+Offline-first: All business logic runs locally; Supabase sync comes Phase 7+
+Key Constraint: No server backend (yet) — app is fully self-contained
+🔗 LINKS
+GitHub Repo: https://github.com/rig5414/mwalimu-pos
+Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
+Latest Release: https://github.com/rig5414/mwalimu-pos/releases
+Dev Commands:
+npm run dev — Electron + Vite (real app mode)
+npm run vite — Browser only (fast UI dev)
+npm run build:win — Build Windows installer
+❓ QUESTIONS FOR AI AGENT
+Before starting work, clarify:
+
+Which Phase 2 task to prioritize first?
+Should we keep GitHub Actions disabled or fix it?
+Any specific user feedback or feature requests?
+Are there UI/UX changes requested?
+You're ready to take over! Good luck! 🚀
