@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
@@ -17,7 +28,7 @@
   body {
     background: #f4f6f9;
     color: #1a2332;
-    user-select: none;
+    -webkit-user-select: none;
   }
 
   /* Custom scrollbar */
@@ -64,4 +75,8 @@
   .badge-warning { @apply bg-orange-50 text-orange-700; }
   .badge-danger  { @apply bg-red-50 text-red-600; }
   .badge-info    { @apply bg-blue-50 text-blue-700; }
+
+  .animate-fade-in-up {
+    @apply animate-fadeInUp;
+  }
 }

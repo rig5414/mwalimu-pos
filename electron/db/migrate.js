@@ -148,11 +148,13 @@ module.exports = function migrate(db) {
 
     // Seed categories
     const categories = [
-      { id: uuidv4(), name: 'Uniforms', parent_id: null, icon: '👕', sort_order: 0 },
-      { id: uuidv4(), name: 'School Bags', parent_id: null, icon: '🎒', sort_order: 1 },
-      { id: uuidv4(), name: 'Tracksuits', parent_id: null, icon: '🏃', sort_order: 2 },
-      { id: uuidv4(), name: 'Shoes', parent_id: null, icon: '👟', sort_order: 3 },
-      { id: uuidv4(), name: 'Accessories', parent_id: null, icon: '🧢', sort_order: 4 },
+      { id: uuidv4(), name: 'School Uniforms', parent_id: null, icon: '👔', sort_order: 0 },
+      { id: uuidv4(), name: 'Games Attires', parent_id: null, icon: '🏃', sort_order: 1 },
+      { id: uuidv4(), name: 'Footwear', parent_id: null, icon: '👟', sort_order: 2 },
+      { id: uuidv4(), name: 'Beddings', parent_id: null, icon: '🛏️', sort_order: 3 },
+      { id: uuidv4(), name: 'Inner Wear', parent_id: null, icon: '🧦', sort_order: 4 },
+      { id: uuidv4(), name: 'School Bags', parent_id: null, icon: '🎒', sort_order: 5 },
+      { id: uuidv4(), name: 'Schools', parent_id: null, icon: '🏫', sort_order: 6 },
     ]
     categories.forEach(cat => {
       db.prepare(`
@@ -163,42 +165,41 @@ module.exports = function migrate(db) {
     console.log('✅ Categories seeded')
 
     // Seed products & variants
-    const uniformsCat = categories[0].id
-    const bagsCat = categories[1].id
-    const trackCat = categories[2].id
-    const shoesCat = categories[3].id
-    const accCat = categories[4].id
+    const schoolUniformsCat = categories[0].id
+    const gamesAttiresCat = categories[1].id
+    const footwearCat = categories[2].id
+    const schoolBagsCat = categories[5].id
 
     const products = [
-      { id: uuidv4(), name: 'Navy Pullovers', category_id: uniformsCat, price: 1500, variants: [
+      { id: uuidv4(), name: 'Navy Pullovers', category_id: schoolUniformsCat, price: 1500, variants: [
         { color: 'Navy', color_hex: '#1a3a5c', size: 'S', stock: 25 },
         { color: 'Navy', color_hex: '#1a3a5c', size: 'M', stock: 18 },
         { color: 'Navy', color_hex: '#1a3a5c', size: 'L', stock: 12 },
         { color: 'Navy', color_hex: '#1a3a5c', size: 'XL', stock: 8 },
       ]},
-      { id: uuidv4(), name: 'White T-Shirts', category_id: uniformsCat, price: 800, variants: [
+      { id: uuidv4(), name: 'White T-Shirts', category_id: schoolUniformsCat, price: 800, variants: [
         { color: 'White', color_hex: '#ffffff', size: 'S', stock: 5 },
         { color: 'White', color_hex: '#ffffff', size: 'M', stock: 15 },
         { color: 'White', color_hex: '#ffffff', size: 'L', stock: 22 },
       ]},
-      { id: uuidv4(), name: 'Navy Trousers', category_id: uniformsCat, price: 2500, variants: [
+      { id: uuidv4(), name: 'Navy Trousers', category_id: schoolUniformsCat, price: 2500, variants: [
         { color: 'Navy', color_hex: '#1a3a5c', size: '26', stock: 10 },
         { color: 'Navy', color_hex: '#1a3a5c', size: '28', stock: 2 },  // Low stock
         { color: 'Navy', color_hex: '#1a3a5c', size: '30', stock: 14 },
         { color: 'Navy', color_hex: '#1a3a5c', size: '32', stock: 8 },
       ]},
-      { id: uuidv4(), name: 'Red Tracksuits', category_id: trackCat, price: 3200, variants: [
+      { id: uuidv4(), name: 'Red Tracksuits', category_id: gamesAttiresCat, price: 3200, variants: [
         { color: 'Red', color_hex: '#e74c3c', size: 'S', stock: 8 },
         { color: 'Red', color_hex: '#e74c3c', size: 'M', stock: 12 },
         { color: 'Red', color_hex: '#e74c3c', size: 'L', stock: 3 },  // Low stock
         { color: 'Red', color_hex: '#e74c3c', size: 'XL', stock: 5 },
       ]},
-      { id: uuidv4(), name: 'Black School Bag', category_id: bagsCat, price: 2200, variants: [
+      { id: uuidv4(), name: 'Black School Bag', category_id: schoolBagsCat, price: 2200, variants: [
         { color: 'Black', color_hex: '#000000', size: '16"', stock: 18 },
         { color: 'Black', color_hex: '#000000', size: '18"', stock: 4 },  // Low stock
         { color: 'Black', color_hex: '#000000', size: '20"', stock: 7 },
       ]},
-      { id: uuidv4(), name: 'Blue School Shoes', category_id: shoesCat, price: 3500, variants: [
+      { id: uuidv4(), name: 'Blue School Shoes', category_id: footwearCat, price: 3500, variants: [
         { color: 'Blue', color_hex: '#3498db', size: '36', stock: 9 },
         { color: 'Blue', color_hex: '#3498db', size: '38', stock: 14 },
         { color: 'Blue', color_hex: '#3498db', size: '40', stock: 11 },

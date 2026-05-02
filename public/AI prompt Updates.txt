@@ -1,9 +1,9 @@
 📊 PROJECT STATUS
 Current Version: v1.0.3
-Current Phase: Phase 2 (In Progress)
+Current Phase: Phase 3 (Ready to Start)
 Repository: https://github.com/rig5414/mwalimu-pos
 Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
-Last Updated: 2026-04-15
+Last Updated: 2026-05-02
 
 ✅ COMPLETED (Phase 1)
 Infrastructure & DevOps
@@ -40,40 +40,60 @@ Known Workarounds/Fixes
 ⚠️ Removed icon references from electron-builder config (icon files didn't exist)
 ⚠️ Fixed React Router: switched BrowserRouter → HashRouter for file:// protocol
 ⚠️ GitHub Actions build disabled (native module compilation issues); use manual local build instead
-🔜 REMAINING (Phase 2 onwards)
-Phase 2 (Next Priority)
+✅ COMPLETED (Phase 2)
+Toast Notification System
+✅ useToast hook + global ToastContainer
+✅ All app alert() calls replaced with toasts (success/error/warning/info)
+
 Barcode Scanner Handler
+✅ POS keydown listener with scan-buffer timing and Enter trigger
+✅ Barcode lookup via IPC (products:getByBarcode) + fallback
+✅ Not-found / out-of-stock handled with toasts
 
-Add keydown listener in POSPage.jsx
-Accumulate rapid keystrokes, trigger on Enter
-Auto-lookup product by barcode, open VariantModal
-Handle no-match gracefully (toast notification)
-Product Management UI (admin only)
+Product Management UI (admin)
+✅ /admin/products page wired
+✅ Add, edit, delete products
+✅ Toggle active/inactive
+✅ Add variants during create/update
+✅ Form validation + barcode field
 
-New page: /admin/products
-Add product, edit product, delete product, toggle active/inactive
-Add variants to existing product (color + size + stock)
-Form validation
-Category Management UI (admin only)
+Category Management UI (admin)
+✅ /admin/categories page wired
+✅ Add, edit, delete, reorder categories
+✅ Cascade-safe delete handling (reassign products to "Uncategorized")
 
-New page: /admin/categories
-Add, edit, delete, reorder categories
-Cascade delete/archive handling
-Toast Notification System (Foundation for all)
+Business Taxonomy Alignment
+✅ Categories standardized: School Uniforms, Games Attires, Footwear, Beddings, Inner Wear, School Bags, Schools
+✅ Subcategory mapping enforced in product form
+✅ School-specific flow supported (Londiani Christian Academy, Londiani Junior Secondary)
+✅ Quick school item selector to speed school-contracted product entry
 
-Create useToast hook
-Create ToastContainer component (bottom-center, auto-dismiss)
-Replace all alert() calls with toasts
-Variants: success, error, warning, info
-Expand Dummy Data
+Expanded Dummy Data
+✅ Realistic Kenyan product names/prices expanded
+✅ School-specific catalogue examples included
 
-MORE realistic products in DUMMY_PRODUCTS / DUMMY_VARIANTS (POSPage.jsx, other pages)
-Real Kenyan uniform names, prices in KES, realistic sizes
-More sample clients, sales
-Phase 3
-Wire SQLite: connect all window.api calls to real DB (currently mostly stubbed with dummy data)
-Remove dummy data fallbacks
-Test full CRUD flow
+🔜 REMAINING (Phase 3 onwards)
+Phase 3 (Current Priority)
+SQLite Wiring Completion
+- Remove remaining stub/dummy fallback logic from admin/shopkeeper pages where production DB should be source of truth
+- Ensure all CRUD flows run against IPC handlers only in Electron mode
+- Add missing IPC handlers only if a page still relies on local mock state
+
+Data Consistency & Integrity
+- Ensure product icon persistence (DB currently has no icon column; decide whether to add migration or derive icon in UI)
+- Validate barcode uniqueness UX in product create/update (friendly toast when duplicate)
+- Ensure stock totals displayed in admin product table match variant-level stock source
+
+Phase 3 Validation Checklist
+- Test full admin CRUD: categories, products, stock, users
+- Test POS checkout: variant selection, payment, receipt, stock deduction
+- Test barcode scan flow with physical scanner in Electron app
+- Verify role guards + session flow (admin/shopkeeper)
+
+Release Readiness
+- Regression test in `npm run dev` (Electron mode)
+- Build installer with `npm run build:win`
+- Tag next release (v1.0.4 recommended)
 Phase 4
 UI/UX refinement
 Tablet touch optimization
@@ -185,14 +205,11 @@ Custom Classes
 .btn-primary, .btn-secondary, .btn-danger
 .card, .input, .label, .badge, .badge-success, .badge-danger, .badge-warning, .badge-info
 📋 NEXT STEPS (IMMEDIATE)
-Test v1.0.2 on remote device — verify login page loads, routing works
-Start Phase 2 tasks in priority order:
-Toast system (foundation)
-Barcode scanner handler
-Product/category management
-Expanded dummy data
-Commit & release frequently — tag each feature: v1.0.3, v1.0.4, etc.
-User feedback — test with actual shopkeeper, gather usability notes
+1) Start Phase 3 SQLite hardening (remove remaining dummy/stub paths where not needed)
+2) Run full end-to-end functional test in Electron mode
+3) Build Windows installer and smoke-test on target tablet
+4) Publish next feature tag/release (v1.0.4)
+5) Gather shopkeeper feedback on school-specific selling flow
 📞 SUPPORT CONTEXT
 Owner/Client: Mwalimu Uniforms (Mombasa, Kenya)
 User Base: Shopkeepers (POS) + Owner/Admin (full system)
@@ -207,11 +224,11 @@ Dev Commands:
 npm run dev — Electron + Vite (real app mode)
 npm run vite — Browser only (fast UI dev)
 npm run build:win — Build Windows installer
-❓ QUESTIONS FOR AI AGENT
-Before starting work, clarify:
+❓ QUESTIONS FOR NEXT AI AGENT
+Before starting Phase 3, clarify:
 
-Which Phase 2 task to prioritize first?
-Should we keep GitHub Actions disabled or fix it?
-Any specific user feedback or feature requests?
-Are there UI/UX changes requested?
-You're ready to take over! Good luck! 🚀
+Which pages still rely on fallback dummy state in Electron mode and should be fully DB-backed now?
+Do we add an `icon` column migration for products, or keep icon as UI-only mapping?
+Should GitHub Actions remain disabled for now, or do we attempt native-module build fixes in CI?
+Any usability tweaks requested after real shopkeeper testing of school-specific categories?
+You're ready to take over Phase 3. Good luck! 🚀

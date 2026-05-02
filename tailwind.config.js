@@ -38,6 +38,9 @@ export default {
         lg: '0 8px 24px rgba(0,0,0,0.12)',
         modal: '0 20px 60px rgba(0,0,0,0.2)',
       },
+      animation: {
+        fadeInUp: 'fadeInUp 0.3s ease-out',
+      },
     },
   },
   plugins: [],

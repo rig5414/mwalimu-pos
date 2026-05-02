@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useCartStore } from '../../store/cartStore'
+import { useToast } from '../../hooks/useToast'
 
 const METHODS = [
   { id: 'cash',  label: 'Cash',   icon: '💵' },
@@ -9,6 +10,7 @@ const METHODS = [
 
 export default function PaymentModal({ onClose, onComplete, userId }) {
   const { items, customerName, clear } = useCartStore()
+  const toast = useToast()
   const [method,       setMethod]      = useState('cash')
   const [cashReceived, setCash]        = useState('')
   const [mpesaPhone,   setMpesaPhone]  = useState('')
@@ -66,7 +68,7 @@ export default function PaymentModal({ onClose, onComplete, userId }) {
       clear()
       onComplete({ ...saleResult, items, customerName, method, change, total })
     } catch (err) {
-      alert('Payment failed: ' + err.message)
+      toast.error('Payment failed: ' + err.message)
     } finally {
       setLoading(false)
     }

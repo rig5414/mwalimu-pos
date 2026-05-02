@@ -24,7 +24,7 @@ export default function SalesPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="font-head font-bold text-xl text-gray-800">All Transactions</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{sales.length} transactions · KES {total.toLocaleString()} total</p>
+          <p className="text-sm text-gray-400 mt-0.5">{sales.length} transactions · Ksh. {total.toLocaleString()} total</p>
         </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -41,7 +41,7 @@ export default function SalesPage() {
               <tr key={s.receipt_no} className="border-t border-gray-100 hover:bg-gray-50">
                 <td className="px-4 py-3 font-mono font-bold text-xs">{s.receipt_no}</td>
                 <td className="px-4 py-3">{s.client_name}</td>
-                <td className="px-4 py-3 font-bold font-head text-primary">KES {s.total?.toLocaleString()}</td>
+                <td className="px-4 py-3 font-bold font-head text-primary">Ksh. {s.total?.toLocaleString()}</td>
                 <td className="px-4 py-3">
                   <span className={`badge ${s.payment_method === 'mpesa' ? 'badge-warning' : s.payment_method === 'card' ? 'badge-info' : 'badge-success'}`}>
                     {s.payment_method}

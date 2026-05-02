@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useCartStore } from '../../store/cartStore'
 import { useAuthStore } from '../../store/authStore'
+import { useToast } from '../../hooks/useToast'
 import VariantModal from '../../components/pos/VariantModal'
 import PaymentModal from '../../components/pos/PaymentModal'
 import ReceiptModal from '../../components/pos/ReceiptModal'
@@ -8,62 +9,155 @@ import CartPanel from '../../components/pos/CartPanel'
 
 // ── Fallback dummy data for dev without Electron ─────────────────────────────
 const DUMMY_CATEGORIES = [
-  { id: 'uniforms',    name: 'Uniforms',     icon: '👔' },
-  { id: 'bags',        name: 'School Bags',  icon: '🎒' },
-  { id: 'tracksuits',  name: 'Tracksuits',   icon: '🩳' },
-  { id: 'shoes',       name: 'Shoes',        icon: '👟' },
-  { id: 'accessories', name: 'Accessories',  icon: '🧢' },
+  { id: 'school-uniforms', name: 'School Uniforms',   icon: '👔' },
+  { id: 'games-attires',   name: 'Games Attires',     icon: '🏃' },
+  { id: 'footwear',        name: 'Footwear',          icon: '👟' },
+  { id: 'inner-wear',      name: 'Inner Wear',        icon: '🧦' },
+  { id: 'beddings',        name: 'Beddings',          icon: '🛏️' },
+  { id: 'school-bags',     name: 'School Bags',       icon: '🎒' },
+  { id: 'schools',         name: 'Schools',           icon: '🏫' },
 ]
 
 const DUMMY_PRODUCTS = [
-  { id: '1', name: 'Pull-over Sweater', category_id: 'uniforms',    subcategory: 'Pull-overs',  price: 850,  total_stock: 24, icon: '🧥' },
-  { id: '2', name: 'School T-Shirt',    category_id: 'uniforms',    subcategory: 'T-Shirts',    price: 450,  total_stock: 38, icon: '👕' },
-  { id: '3', name: 'School Trouser',    category_id: 'uniforms',    subcategory: 'Trousers',    price: 750,  total_stock: 5,  icon: '👖' },
-  { id: '4', name: 'School Skirt',      category_id: 'uniforms',    subcategory: 'Skirts',      price: 650,  total_stock: 19, icon: '👗' },
-  { id: '5', name: 'School Short',      category_id: 'uniforms',    subcategory: 'Shorts',      price: 550,  total_stock: 22, icon: '🩳' },
-  { id: '6', name: 'Backpack 18"',      category_id: 'bags',        subcategory: 'Backpacks',   price: 1200, total_stock: 4,  icon: '🎒' },
-  { id: '7', name: 'Backpack 16"',      category_id: 'bags',        subcategory: 'Backpacks',   price: 950,  total_stock: 11, icon: '🎒' },
-  { id: '8', name: 'Lunch Bag',         category_id: 'bags',        subcategory: 'Lunch Bags',  price: 350,  total_stock: 28, icon: '🧳' },
-  { id: '9', name: 'Full Tracksuit',    category_id: 'tracksuits',  subcategory: 'Full Suits',  price: 1800, total_stock: 13, icon: '🥋' },
-  { id:'10', name: 'Track Bottoms',     category_id: 'tracksuits',  subcategory: 'Bottoms',     price: 900,  total_stock: 20, icon: '👖' },
-  { id:'11', name: 'Track Top',         category_id: 'tracksuits',  subcategory: 'Tops',        price: 900,  total_stock: 17, icon: '🧥' },
-  { id:'12', name: "Boys School Shoes", category_id: 'shoes',       subcategory: 'Boys',        price: 2200, total_stock: 9,  icon: '👟' },
-  { id:'13', name: "Girls School Shoes",category_id: 'shoes',       subcategory: 'Girls',       price: 2100, total_stock: 7,  icon: '👠' },
-  { id:'14', name: 'School Belt',       category_id: 'accessories', subcategory: 'Belts',       price: 200,  total_stock: 45, icon: '🔧' },
-  { id:'15', name: 'School Tie',        category_id: 'accessories', subcategory: 'Ties',        price: 180,  total_stock: 32, icon: '👔' },
-  { id:'16', name: 'Sport Socks 3-pack',category_id: 'accessories', subcategory: 'Socks',       price: 250,  total_stock: 60, icon: '🧦' },
+  // ── School Uniforms ──
+  { id: '1', name: 'Navy Pullover', category_id: 'school-uniforms', subcategory: 'Pullovers', price: 1200, total_stock: 28, icon: '🧥' },
+  { id: '2', name: 'School Shirt', category_id: 'school-uniforms', subcategory: 'Shirts', price: 650, total_stock: 35, icon: '👕' },
+  { id: '3', name: 'Navy Trouser', category_id: 'school-uniforms', subcategory: 'Trousers', price: 1150, total_stock: 20, icon: '👖' },
+  { id: '4', name: 'Navy Dress', category_id: 'school-uniforms', subcategory: 'Dresses', price: 1350, total_stock: 15, icon: '👗' },
+  { id: '5', name: 'Half Sweater', category_id: 'school-uniforms', subcategory: 'Half Sweaters', price: 950, total_stock: 22, icon: '🧤' },
+  { id: '6', name: 'School Socks (6-pack)', category_id: 'school-uniforms', subcategory: 'Socks', price: 480, total_stock: 40, icon: '🧦' },
+  { id: '7', name: 'Navy Skirt', category_id: 'school-uniforms', subcategory: 'Skirts', price: 1100, total_stock: 18, icon: '👗' },
+  { id: '8', name: "Marvin's (Male Vest)", category_id: 'school-uniforms', subcategory: "Marvin's", price: 450, total_stock: 32, icon: '👕' },
+  { id: '9', name: 'School Gloves', category_id: 'school-uniforms', subcategory: 'Gloves', price: 350, total_stock: 25, icon: '🧤' },
+
+  // ── Games Attires ──
+  { id: '10', name: 'Games T-Shirt', category_id: 'games-attires', subcategory: 'Tshirts', price: 550, total_stock: 45, icon: '👕' },
+  { id: '11', name: 'Full Tracksuit', category_id: 'games-attires', subcategory: 'Tracksuits', price: 2450, total_stock: 14, icon: '🥋' },
+  { id: '12', name: 'Games Shorts', category_id: 'games-attires', subcategory: 'Games Shorts', price: 750, total_stock: 35, icon: '🩳' },
+  { id: '13', name: 'Wrappers/Bloomers', category_id: 'games-attires', subcategory: 'Wrappers Bloomers', price: 650, total_stock: 28, icon: '👗' },
+  { id: '14', name: 'Jersey', category_id: 'games-attires', subcategory: 'Jersey', price: 850, total_stock: 22, icon: '👕' },
+  { id: '15', name: 'Girls Shorts', category_id: 'games-attires', subcategory: 'Girls shorts', price: 700, total_stock: 30, icon: '🩳' },
+
+  // ── Footwear ──
+  { id: '16', name: 'Toughees (Kids)', category_id: 'footwear', subcategory: 'Toughees', price: 2800, total_stock: 12, icon: '👞' },
+  { id: '17', name: 'Studeez Shoes', category_id: 'footwear', subcategory: 'Studeez', price: 2600, total_stock: 16, icon: '👟' },
+  { id: '18', name: 'Semi + Toughees', category_id: 'footwear', subcategory: 'Semi + Toughees', price: 2400, total_stock: 14, icon: '👞' },
+  { id: '19', name: 'Rubber Shoes', category_id: 'footwear', subcategory: 'Rubber shoes', price: 1800, total_stock: 24, icon: '👟' },
+  { id: '20', name: 'Slippers', category_id: 'footwear', subcategory: 'Slippers', price: 800, total_stock: 42, icon: '🩴' },
+  { id: '21', name: 'Crocs', category_id: 'footwear', subcategory: 'Crocs', price: 1500, total_stock: 20, icon: '👟' },
+  { id: '22', name: 'Bata Breathers', category_id: 'footwear', subcategory: 'Bata Breathers', price: 2200, total_stock: 18, icon: '👟' },
+
+  // ── Inner Wear ──
+  { id: '23', name: 'Boxers', category_id: 'inner-wear', subcategory: 'Boxers', price: 400, total_stock: 50, icon: '👖' },
+  { id: '24', name: 'Panties', category_id: 'inner-wear', subcategory: 'Panties', price: 380, total_stock: 55, icon: '👖' },
+  { id: '25', name: 'Vests', category_id: 'inner-wear', subcategory: 'Vests', price: 350, total_stock: 48, icon: '🧤' },
+  { id: '26', name: 'Sports Bra', category_id: 'inner-wear', subcategory: 'Sports bra', price: 650, total_stock: 30, icon: '🧤' },
+
+  // ── Beddings ──
+  { id: '27', name: 'Blanket', category_id: 'beddings', subcategory: 'Blankets', price: 2500, total_stock: 10, icon: '🛏️' },
+  { id: '28', name: 'Bed Cover', category_id: 'beddings', subcategory: 'Bed covers', price: 1800, total_stock: 12, icon: '🛏️' },
+  { id: '29', name: 'Bedsheet Set', category_id: 'beddings', subcategory: 'Bedsheets', price: 1500, total_stock: 15, icon: '🛏️' },
+  { id: '30', name: 'Pajamas Set', category_id: 'beddings', subcategory: 'Pajamas', price: 1200, total_stock: 20, icon: '👕' },
+  { id: '31', name: 'Nightdress', category_id: 'beddings', subcategory: 'Nightdress', price: 1100, total_stock: 18, icon: '👗' },
+  { id: '32', name: 'Towel', category_id: 'beddings', subcategory: 'Towels', price: 600, total_stock: 35, icon: '🧴' },
+
+  // ── School Bags ──
+  { id: '33', name: 'Canvas School Backpack 18"', category_id: 'school-bags', subcategory: 'Backpacks', price: 1800, total_stock: 12, icon: '🎒' },
+  { id: '34', name: 'Nylon Backpack 16"', category_id: 'school-bags', subcategory: 'Backpacks', price: 1350, total_stock: 16, icon: '🎒' },
+  { id: '35', name: 'Sports Duffel Bag', category_id: 'school-bags', subcategory: 'Duffel Bags', price: 1600, total_stock: 10, icon: '🧳' },
+  { id: '36', name: 'Lunch Bag', category_id: 'school-bags', subcategory: 'Lunch Bags', price: 550, total_stock: 28, icon: '🍱' },
+
+  // ── Schools ──
+  // Londiani Christian Academy
+  { id: '37', name: 'Londiani Christian Academy - Pullover', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 1300, total_stock: 15, icon: '🧥' },
+  { id: '38', name: 'Londiani Christian Academy - Half Sweater', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 950, total_stock: 18, icon: '🧤' },
+  { id: '39', name: 'Londiani Christian Academy - Shirt', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 700, total_stock: 25, icon: '👕' },
+  { id: '40', name: 'Londiani Christian Academy - Dress', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 1400, total_stock: 12, icon: '👗' },
+  { id: '41', name: 'Londiani Christian Academy - Girls Trouser', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 1200, total_stock: 14, icon: '👖' },
+  { id: '42', name: 'Londiani Christian Academy - Long Trouser', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 1250, total_stock: 16, icon: '👖' },
+  { id: '43', name: 'Londiani Christian Academy - Tracksuit', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 2500, total_stock: 10, icon: '🥋' },
+  { id: '44', name: 'Londiani Christian Academy - Socks', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 500, total_stock: 35, icon: '🧦' },
+  { id: '45', name: 'Londiani Christian Academy - Tie', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 300, total_stock: 40, icon: '👔' },
+  { id: '46', name: 'Londiani Christian Academy - Marvin', category_id: 'schools', subcategory: 'Londiani Christian Academy', price: 450, total_stock: 28, icon: '👕' },
+
+  // Londiani Junior Secondary
+  { id: '47', name: 'Londiani Junior Secondary - Pullover', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 1350, total_stock: 18, icon: '🧥' },
+  { id: '48', name: 'Londiani Junior Secondary - Half Sweater', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 1000, total_stock: 16, icon: '🧤' },
+  { id: '49', name: 'Londiani Junior Secondary - Shirt', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 750, total_stock: 22, icon: '👕' },
+  { id: '50', name: 'Londiani Junior Secondary - Trouser', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 1300, total_stock: 18, icon: '👖' },
+  { id: '51', name: 'Londiani Junior Secondary - Girls Trouser', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 1250, total_stock: 16, icon: '👖' },
+  { id: '52', name: 'Londiani Junior Secondary - Tracksuit', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 2600, total_stock: 12, icon: '🥋' },
+  { id: '53', name: 'Londiani Junior Secondary - Tshirt', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 600, total_stock: 30, icon: '👕' },
+  { id: '54', name: 'Londiani Junior Secondary - Tie', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 320, total_stock: 38, icon: '👔' },
+  { id: '55', name: 'Londiani Junior Secondary - Girls Socks', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 520, total_stock: 32, icon: '🧦' },
+  { id: '56', name: 'Londiani Junior Secondary - Boys Socks', category_id: 'schools', subcategory: 'Londiani Junior Secondary', price: 520, total_stock: 32, icon: '🧦' },
 ]
 
 const DUMMY_VARIANTS = {
-  '1': [
-    { id:'v1a', product_id:'1', color:'Navy',   color_hex:'#1a3a5c', size:'S',  stock_qty: 6 },
-    { id:'v1b', product_id:'1', color:'Navy',   color_hex:'#1a3a5c', size:'M',  stock_qty: 8 },
-    { id:'v1c', product_id:'1', color:'Navy',   color_hex:'#1a3a5c', size:'L',  stock_qty: 6 },
-    { id:'v1d', product_id:'1', color:'Green',  color_hex:'#2d5a1e', size:'M',  stock_qty: 4 },
+  // School Uniforms
+  '1': [  // Navy Pullover
+    { id:'v1a', product_id:'1', color:'Navy', color_hex:'#1a3a5c', size:'10', stock_qty: 4 },
+    { id:'v1b', product_id:'1', color:'Navy', color_hex:'#1a3a5c', size:'12', stock_qty: 6 },
+    { id:'v1c', product_id:'1', color:'Navy', color_hex:'#1a3a5c', size:'14', stock_qty: 8 },
+    { id:'v1d', product_id:'1', color:'Navy', color_hex:'#1a3a5c', size:'16', stock_qty: 5 },
+    { id:'v1e', product_id:'1', color:'Navy', color_hex:'#1a3a5c', size:'XL', stock_qty: 5 },
   ],
-  '2': [
-    { id:'v2a', product_id:'2', color:'White',    color_hex:'#f5f5f5', size:'S',  stock_qty:10 },
-    { id:'v2b', product_id:'2', color:'White',    color_hex:'#f5f5f5', size:'M',  stock_qty:12 },
-    { id:'v2c', product_id:'2', color:'Sky Blue', color_hex:'#d0e8ff', size:'M',  stock_qty: 8 },
-    { id:'v2d', product_id:'2', color:'Sky Blue', color_hex:'#d0e8ff', size:'L',  stock_qty: 8 },
+  '2': [  // School Shirt
+    { id:'v2a', product_id:'2', color:'White', color_hex:'#ffffff', size:'10', stock_qty: 8 },
+    { id:'v2b', product_id:'2', color:'White', color_hex:'#ffffff', size:'12', stock_qty: 10 },
+    { id:'v2c', product_id:'2', color:'White', color_hex:'#ffffff', size:'14', stock_qty: 10 },
+    { id:'v2d', product_id:'2', color:'White', color_hex:'#ffffff', size:'16', stock_qty: 7 },
   ],
-  '3': [
-    { id:'v3a', product_id:'3', color:'Navy',   color_hex:'#2c2c54', size:'28', stock_qty: 2 },
-    { id:'v3b', product_id:'3', color:'Navy',   color_hex:'#2c2c54', size:'30', stock_qty: 1 },
-    { id:'v3c', product_id:'3', color:'Black',  color_hex:'#2d2d2d', size:'30', stock_qty: 2 },
+  '3': [  // Navy Trouser
+    { id:'v3a', product_id:'3', color:'Navy', color_hex:'#1a3a5c', size:'28', stock_qty: 3 },
+    { id:'v3b', product_id:'3', color:'Navy', color_hex:'#1a3a5c', size:'30', stock_qty: 5 },
+    { id:'v3c', product_id:'3', color:'Navy', color_hex:'#1a3a5c', size:'32', stock_qty: 6 },
+    { id:'v3d', product_id:'3', color:'Navy', color_hex:'#1a3a5c', size:'34', stock_qty: 6 },
   ],
-  '6': [
-    { id:'v6a', product_id:'6', color:'Black', color_hex:'#1a1a1a', size:'One Size', stock_qty: 4 },
+  '4': [  // Navy Dress
+    { id:'v4a', product_id:'4', color:'Navy', color_hex:'#1a3a5c', size:'10', stock_qty: 4 },
+    { id:'v4b', product_id:'4', color:'Navy', color_hex:'#1a3a5c', size:'12', stock_qty: 5 },
+    { id:'v4c', product_id:'4', color:'Navy', color_hex:'#1a3a5c', size:'14', stock_qty: 6 },
   ],
-  '9': [
-    { id:'v9a', product_id:'9', color:'Black', color_hex:'#1a1a1a', size:'S',  stock_qty: 4 },
-    { id:'v9b', product_id:'9', color:'Black', color_hex:'#1a1a1a', size:'M',  stock_qty: 5 },
-    { id:'v9c', product_id:'9', color:'Navy',  color_hex:'#1a3a5c', size:'L',  stock_qty: 4 },
+  
+  // Games Attires
+  '10': [  // Games T-Shirt
+    { id:'v10a', product_id:'10', color:'White', color_hex:'#ffffff', size:'10', stock_qty: 10 },
+    { id:'v10b', product_id:'10', color:'White', color_hex:'#ffffff', size:'12', stock_qty: 12 },
+    { id:'v10c', product_id:'10', color:'White', color_hex:'#ffffff', size:'14', stock_qty: 13 },
+    { id:'v10d', product_id:'10', color:'White', color_hex:'#ffffff', size:'16', stock_qty: 10 },
   ],
-  '12': [
-    { id:'v12a', product_id:'12', color:'Black', color_hex:'#1a1a1a', size:'37', stock_qty: 3 },
-    { id:'v12b', product_id:'12', color:'Black', color_hex:'#1a1a1a', size:'38', stock_qty: 3 },
-    { id:'v12c', product_id:'12', color:'Black', color_hex:'#1a1a1a', size:'39', stock_qty: 3 },
+  '11': [  // Full Tracksuit
+    { id:'v11a', product_id:'11', color:'Navy', color_hex:'#1a3a5c', size:'10', stock_qty: 3 },
+    { id:'v11b', product_id:'11', color:'Navy', color_hex:'#1a3a5c', size:'12', stock_qty: 4 },
+    { id:'v11c', product_id:'11', color:'Navy', color_hex:'#1a3a5c', size:'14', stock_qty: 4 },
+    { id:'v11d', product_id:'11', color:'Navy', color_hex:'#1a3a5c', size:'16', stock_qty: 3 },
+  ],
+
+  // Footwear
+  '16': [  // Toughees
+    { id:'v16a', product_id:'16', color:'Black', color_hex:'#000000', size:'32', stock_qty: 2 },
+    { id:'v16b', product_id:'16', color:'Black', color_hex:'#000000', size:'33', stock_qty: 3 },
+    { id:'v16c', product_id:'16', color:'Black', color_hex:'#000000', size:'34', stock_qty: 3 },
+    { id:'v16d', product_id:'16', color:'Black', color_hex:'#000000', size:'35', stock_qty: 4 },
+  ],
+  '17': [  // Studeez
+    { id:'v17a', product_id:'17', color:'Black', color_hex:'#000000', size:'33', stock_qty: 3 },
+    { id:'v17b', product_id:'17', color:'Black', color_hex:'#000000', size:'34', stock_qty: 4 },
+    { id:'v17c', product_id:'17', color:'Black', color_hex:'#000000', size:'35', stock_qty: 4 },
+    { id:'v17d', product_id:'17', color:'Black', color_hex:'#000000', size:'36', stock_qty: 5 },
+  ],
+
+  // School-Specific (Londiani Christian Academy)
+  '37': [  // LCA Primary Pullover
+    { id:'v37a', product_id:'37', color:'Navy', color_hex:'#1a3a5c', size:'10', stock_qty: 3 },
+    { id:'v37b', product_id:'37', color:'Navy', color_hex:'#1a3a5c', size:'12', stock_qty: 5 },
+    { id:'v37c', product_id:'37', color:'Navy', color_hex:'#1a3a5c', size:'14', stock_qty: 7 },
+  ],
+  '47': [  // LCA JS Pullover
+    { id:'v47a', product_id:'47', color:'Navy', color_hex:'#1a3a5c', size:'12', stock_qty: 5 },
+    { id:'v47b', product_id:'47', color:'Navy', color_hex:'#1a3a5c', size:'14', stock_qty: 6 },
+    { id:'v47c', product_id:'47', color:'Navy', color_hex:'#1a3a5c', size:'16', stock_qty: 7 },
   ],
 }
 // Generate simple variants for products without detailed ones
@@ -92,7 +186,9 @@ export default function POSPage() {
   const [completedSale, setCompletedSale]   = useState(null)
 
   const { user } = useAuthStore()
-  const cartItems = useCartStore(s => s.items)
+  const toast = useToast()
+  const barcodeBufferRef = useRef('')
+  const barcodeTimerRef = useRef(null)
 
   // Load categories on mount
   useEffect(() => {
@@ -117,6 +213,55 @@ export default function POSPage() {
     const product = await loadProductById(productId)
     setVariantProduct(product)
   }, [])
+
+  const resolveBarcodeProduct = useCallback(async (barcode) => {
+    if (window.api?.products?.getByBarcode) {
+      const res = await window.api.products.getByBarcode(barcode)
+      if (res.ok) return res.data
+    }
+
+    const currentProducts = products.length > 0 ? products : DUMMY_PRODUCTS
+    return currentProducts.find((p) => p.barcode === barcode || p.id === barcode) || null
+  }, [products])
+
+  // Barcode scanner handler
+  useEffect(() => {
+    const handleKeydown = async (e) => {
+      // Ignore if typing in input fields
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
+      if (e.key === 'Enter') {
+        const barcode = barcodeBufferRef.current.trim()
+        if (!barcode) return
+
+        if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current)
+        barcodeTimerRef.current = null
+
+        const product = await resolveBarcodeProduct(barcode)
+        if (product && Number(product.total_stock) > 0) {
+          openVariant(product.id)
+        } else if (!product) {
+          toast.warning(`Product with barcode "${barcode}" not found`)
+        } else {
+          toast.error(`Product "${product.name}" is out of stock`)
+        }
+        barcodeBufferRef.current = ''
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        barcodeBufferRef.current += e.key
+        if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current)
+        barcodeTimerRef.current = setTimeout(() => {
+          barcodeBufferRef.current = ''
+          barcodeTimerRef.current = null
+        }, 120)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown)
+    return () => {
+      window.removeEventListener('keydown', handleKeydown)
+      if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current)
+    }
+  }, [openVariant, resolveBarcodeProduct, toast])
 
   // Subcategories derived from current products
   const subcats = ['All', ...new Set(products.map(p => p.subcategory).filter(Boolean))]

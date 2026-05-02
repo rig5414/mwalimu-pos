@@ -10,6 +10,8 @@ import DashboardPage from './pages/admin/DashboardPage'
 import SalesPage from './pages/admin/SalesPage'
 import StockPageAdmin from './pages/admin/StockPage'
 import UsersPage from './pages/admin/UsersPage'
+import ProductsPage from './pages/admin/ProductsPage'
+import CategoriesPage from './pages/admin/CategoriesPage'
 
 // Route guard
 function Require({ role, children }) {
@@ -41,6 +43,8 @@ export default function App() {
         <Route path="sales" element={<SalesPage />} />
         <Route path="stock" element={<StockPageAdmin />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="products" element={<ProductsPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
       </Route>
 
       {/* Default redirect */}

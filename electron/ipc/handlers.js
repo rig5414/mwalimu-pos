@@ -47,6 +47,46 @@ module.exports.register = function (ipcMain, db) {
     return { id }
   })
 
+  handle('categories:update', ({ id, name, parent_id, icon, sort_order }) => {
+    db.prepare(`
+      UPDATE categories
+      SET name = ?, parent_id = ?, icon = ?, sort_order = ?
+      WHERE id = ?
+    `).run(name, parent_id || null, icon || null, sort_order || 0, id)
+    return { ok: true }
+  })
+
+  handle('categories:delete', (id) => {
+    const category = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(id)
+    if (!category) throw new Error('Category not found')
+
+    const productsInCategory = db.prepare(
+      'SELECT COUNT(*) as count FROM products WHERE category_id = ?'
+    ).get(id)
+
+    let reassignedTo = null
+    if (productsInCategory.count > 0) {
+      // Keep product records valid by reassigning to a stable fallback category.
+      const uncategorized = db.prepare(
+        'SELECT id FROM categories WHERE name = ? LIMIT 1'
+      ).get('Uncategorized')
+
+      reassignedTo = uncategorized?.id || uuidv4()
+      if (!uncategorized) {
+        db.prepare(
+          'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)'
+        ).run(reassignedTo, 'Uncategorized', '📦', 9999)
+      }
+
+      db.prepare(
+        'UPDATE products SET category_id = ?, updated_at = datetime(\'now\') WHERE category_id = ?'
+      ).run(reassignedTo, id)
+    }
+
+    db.prepare('DELETE FROM categories WHERE id = ?').run(id)
+    return { ok: true, reassigned_count: productsInCategory.count, reassigned_to: reassignedTo }
+  })
+
   // ── Products ───────────────────────────────────────────────────────────────
   handle('products:getAll', (filters = {}) => {
     let query = `
@@ -56,13 +96,30 @@ module.exports.register = function (ipcMain, db) {
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN product_variants pv ON pv.product_id = p.id
-      WHERE p.is_active = 1
+      WHERE 1 = 1
     `
     const params = []
+    if (!filters.include_inactive) query += ' AND p.is_active = 1'
     if (filters.category_id) { query += ' AND p.category_id = ?'; params.push(filters.category_id) }
     if (filters.search) { query += ' AND p.name LIKE ?'; params.push(`%${filters.search}%`) }
     query += ' GROUP BY p.id ORDER BY p.name'
     return db.prepare(query).all(...params)
+  })
+
+  handle('products:getByBarcode', (barcode) => {
+    const product = db.prepare(`
+      SELECT p.*, c.name as category_name,
+             SUM(pv.stock_qty) as total_stock
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN product_variants pv ON pv.product_id = p.id
+      WHERE p.barcode = ? AND p.is_active = 1
+      GROUP BY p.id
+      LIMIT 1
+    `).get(barcode)
+
+    if (!product) throw new Error('Product not found')
+    return product
   })
 
   handle('products:getById', (id) => {
@@ -92,6 +149,56 @@ module.exports.register = function (ipcMain, db) {
       }
     }
     return { id }
+  })
+
+  handle('products:update', ({ id, name, category_id, subcategory, price, barcode, description, is_active, variants }) => {
+    const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(id)
+    if (!existing) throw new Error('Product not found')
+
+    db.prepare(`
+      UPDATE products
+      SET name = ?, category_id = ?, subcategory = ?, price = ?, barcode = ?, description = ?,
+          is_active = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      name,
+      category_id || null,
+      subcategory || null,
+      price,
+      barcode || null,
+      description || null,
+      is_active === 0 || is_active === false ? 0 : 1,
+      id
+    )
+
+    if (Array.isArray(variants) && variants.length > 0) {
+      const insertVariant = db.prepare(`
+        INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `)
+      for (const v of variants) {
+        insertVariant.run(
+          uuidv4(),
+          id,
+          v.color || null,
+          v.color_hex || null,
+          v.size || null,
+          v.sku || null,
+          Number(v.stock_qty) || 0
+        )
+      }
+    }
+
+    return { ok: true }
+  })
+
+  handle('products:delete', (id) => {
+    const product = db.prepare('SELECT id, name FROM products WHERE id = ?').get(id)
+    if (!product) throw new Error('Product not found')
+
+    db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(id)
+    db.prepare('DELETE FROM products WHERE id = ?').run(id)
+    return { ok: true }
   })
 
   // ── Stock ──────────────────────────────────────────────────────────────────

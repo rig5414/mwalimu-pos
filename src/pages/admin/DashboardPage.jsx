@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
   const fmt = (key) => {
     const v = summary[key]
-    if (key === 'revenue') return 'KES ' + Number(v || 0).toLocaleString()
+    if (key === 'revenue') return 'Ksh. ' + Number(v || 0).toLocaleString()
     return String(v || 0)
   }
 

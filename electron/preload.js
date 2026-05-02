@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('api', {
   products: {
     getAll:       (filters) => invoke('products:getAll', filters),
     getById:      (id)      => invoke('products:getById', id),
+    getByBarcode: (barcode) => invoke('products:getByBarcode', barcode),
     create:       (data)    => invoke('products:create', data),
     update:       (data)    => invoke('products:update', data),
     delete:       (id)      => invoke('products:delete', id),    // admin only
