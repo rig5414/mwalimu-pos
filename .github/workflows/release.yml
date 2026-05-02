@@ -20,11 +20,16 @@ jobs:
 
       - name: Build for Windows
         run: npm run build:win
-
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist-electron/**/*.exe
+          files: | 
+             dist-electron/**/*.exe
+             dist-electron/**/*.exe.blockmap
+             dist-electron/latest.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -46,11 +51,15 @@ jobs:
 
       - name: Build for Linux
         run: npm run build:linux
+        env:
+           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist-electron/**/*.AppImage
+          files:  |
+              dist-electron/**/*.AppImage
+              dist-electron/latest-linux.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
