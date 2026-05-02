@@ -1,6 +1,6 @@
 {
   "name": "mwalimu-pos",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
   "author": "Manasseh Telle",
   "main": "electron/main.js",
@@ -8,6 +8,7 @@
     "dev": "concurrently \"npm run vite\" \"npm run electron:dev\"",
     "vite": "vite",
     "electron:dev": "wait-on http://localhost:5173 && electron .",
+    "prebuild:win": "taskkill /IM electron.exe /F >NUL 2>&1 || echo electron not running",
     "build": "vite build && electron-builder",
     "build:win": "vite build && electron-builder --win",
     "build:linux": "vite build && electron-builder --linux",
