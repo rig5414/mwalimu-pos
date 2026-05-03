@@ -10,8 +10,8 @@
     "electron:dev": "wait-on http://localhost:5173 && electron .",
     "prebuild:win": "taskkill /IM electron.exe /F >NUL 2>&1 || echo electron not running",
     "build": "vite build && electron-builder",
-    "build:win": "vite build && electron-builder --win",
-    "build:linux": "vite build && electron-builder --linux",
+    "build:win": "vite build && electron-builder --win --publish never",
+    "build:linux": "vite build && electron-builder --linux --publish never",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -52,12 +52,6 @@
       "node_modules/better-sqlite3/**/*",
       "node_modules/node-thermal-printer/**/*"
     ],
-    "publish": {
-      "provider": "github",
-      "owner": "rig5414",
-      "repo": "mwalimu-pos",
-      "releaseType": "release"
-    },
     "win": {
       "target": "nsis"
     },
