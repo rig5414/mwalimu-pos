@@ -1,9 +1,9 @@
 📊 PROJECT STATUS
-Current Version: v1.0.4
+Current Version: v1.0.6
 Current Phase: Phase 3 (Ready to Start)
 Repository: https://github.com/rig5414/mwalimu-pos
 Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
-Last Updated: 2026-05-02
+Last Updated: 2026-05-07
 
 ✅ COMPLETED (Phase 1)
 Infrastructure & DevOps
@@ -71,6 +71,12 @@ Business Taxonomy Alignment
 Expanded Dummy Data
 ✅ Realistic Kenyan product names/prices expanded
 ✅ School-specific catalogue examples included
+
+Data Consistency & Auto-Updater (v1.0.6 Polish)
+✅ Aligned SQLite `migrate.js` seed data to perfectly match React `DUMMY_PRODUCTS` and `DUMMY_CATEGORIES` (stable IDs, subcategories included)
+✅ Handled `variant_id` NOT NULL constraint in historical `sale_items`
+✅ Configured `electron-updater` with GitHub releases (`package.json` publish config)
+✅ Tested auto-updater successfully (requires `latest.yml` to be uploaded to GitHub release)
 
 🔜 REMAINING (Phase 3 onwards)
 Phase 3 (Current Priority)
@@ -158,8 +164,8 @@ npm run build:win  # Creates dist-electron/Mwalimu POS Setup*.exe
 GitHub Release (Manual):
 
 Go to repo → Releases → "Create new release"
-Tag: v1.0.3(incrementing on every release hence the newest release would be v1.0.4 nd so forth)
-Upload .exe file
+Tag: e.g. v1.0.6 (increment on every release)
+Upload THREE files from `dist-electron`: The `.exe`, `.blockmap`, AND `latest.yml` (CRITICAL for auto-updater!)
 Publish
 Download Page Updates Automatically:
 
@@ -208,7 +214,7 @@ Custom Classes
 1) Start Phase 3 SQLite hardening (remove remaining dummy/stub paths where not needed)
 2) Run full end-to-end functional test in Electron mode
 3) Build Windows installer and smoke-test on target tablet
-4) Publish next feature tag/release (v1.0.4)
+4) Publish next feature tag/release (v1.0.7)
 5) Gather shopkeeper feedback on school-specific selling flow
 📞 SUPPORT CONTEXT
 Owner/Client: Mwalimu Uniforms (Mombasa, Kenya)
