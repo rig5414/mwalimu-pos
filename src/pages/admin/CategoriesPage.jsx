@@ -34,15 +34,14 @@ export default function CategoriesPage() {
     try {
       if (window.api) {
         const res = await window.api.categories.getAll()
-        if (res.ok) {
-          setCategories(res.data)
-        }
+        if (!res.ok) throw new Error(res.error)
+        setCategories(res.data)
       } else {
         // Dev mode: use initial categories
         setCategories(INITIAL_CATEGORIES)
       }
     } catch (err) {
-      toast.error('Failed to load categories')
+      toast.error('Failed to load categories: ' + (err.message || 'Unknown error'))
     }
   }
 

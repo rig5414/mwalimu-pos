@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const path = require('path')
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+// app.isPackaged is false when running `electron .` from source, true only for installed builds
+const isDev = !app.isPackaged
 
 // ─── Database ───────────────────────────────────────────────────────────────
 let db

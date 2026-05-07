@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useCartStore } from '../../store/cartStore'
+import { useToast } from '../../hooks/useToast'
 
 export default function VariantModal({ product, onClose }) {
   const variants   = product.variants || []
   const addItem    = useCartStore(s => s.addItem)
-  const [toast, setToast] = useState(false)
+  const toast      = useToast()
+  const [added, setAdded] = useState(false)
 
   // Derive unique colors and sizes from variants
   const colors = useMemo(() => {
@@ -47,8 +49,9 @@ export default function VariantModal({ product, onClose }) {
       icon:        product.icon || '📦',
       qty,
     })
-    setToast(true)
-    setTimeout(() => { setToast(false); onClose() }, 800)
+    toast.success(`${product.name} (${selectedColor} / ${selectedSize}) added to cart`)
+    setAdded(true)
+    setTimeout(() => { setAdded(false); onClose() }, 800)
   }
 
   return (
@@ -148,11 +151,11 @@ export default function VariantModal({ product, onClose }) {
           <button onClick={handleAdd} disabled={!canAdd}
             className={`w-full py-4 rounded-xl font-head font-bold text-base transition-all
                         ${canAdd
-                          ? toast
+                          ? added
                             ? 'bg-green-500 text-white'
                             : 'bg-primary text-white hover:bg-primary-dark cursor-pointer active:scale-98'
                           : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
-            {toast ? '✓ Added!' : canAdd ? '+ Add to Cart' : 'Select color & size'}
+            {added ? '✓ Added!' : canAdd ? '+ Add to Cart' : 'Select color & size'}
           </button>
         </div>
       </div>

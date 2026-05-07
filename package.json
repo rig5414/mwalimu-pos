@@ -1,6 +1,6 @@
 {
   "name": "mwalimu-pos",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
   "author": "Manasseh Telle",
   "main": "electron/main.js",
@@ -8,6 +8,7 @@
     "dev": "concurrently \"npm run vite\" \"npm run electron:dev\"",
     "vite": "vite",
     "electron:dev": "wait-on http://localhost:5173 && electron .",
+    "kill:electron": "powershell -Command \"Get-Process electron -ErrorAction SilentlyContinue | Stop-Process -Force\"",
     "prebuild:win": "taskkill /IM electron.exe /F >NUL 2>&1 || echo electron not running",
     "build": "vite build && electron-builder",
     "build:win": "vite build && electron-builder --win --publish never",
@@ -43,6 +44,13 @@
     "appId": "com.mwalimu.pos",
     "productName": "Mwalimu POS",
     "copyright": "Copyright © 2026 Mwalimu Uniforms",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "rig5414",
+        "repo": "mwalimu-pos"
+      }
+    ],
     "directories": {
       "output": "dist-electron"
     },

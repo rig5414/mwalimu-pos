@@ -98,7 +98,7 @@ module.exports = function migrate(db) {
     CREATE TABLE IF NOT EXISTS sale_items (
       id            TEXT PRIMARY KEY,
       sale_id       TEXT NOT NULL REFERENCES sales(id),
-      variant_id    TEXT NOT NULL REFERENCES product_variants(id),
+      variant_id    TEXT REFERENCES product_variants(id),  -- nullable: variant may be deleted later
       product_name  TEXT NOT NULL,   -- snapshot
       color         TEXT,            -- snapshot
       size          TEXT,            -- snapshot
@@ -148,13 +148,13 @@ module.exports = function migrate(db) {
 
     // Seed categories
     const categories = [
-      { id: uuidv4(), name: 'School Uniforms', parent_id: null, icon: '👔', sort_order: 0 },
-      { id: uuidv4(), name: 'Games Attires', parent_id: null, icon: '🏃', sort_order: 1 },
-      { id: uuidv4(), name: 'Footwear', parent_id: null, icon: '👟', sort_order: 2 },
-      { id: uuidv4(), name: 'Beddings', parent_id: null, icon: '🛏️', sort_order: 3 },
-      { id: uuidv4(), name: 'Inner Wear', parent_id: null, icon: '🧦', sort_order: 4 },
-      { id: uuidv4(), name: 'School Bags', parent_id: null, icon: '🎒', sort_order: 5 },
-      { id: uuidv4(), name: 'Schools', parent_id: null, icon: '🏫', sort_order: 6 },
+      { id: 'school-uniforms', name: 'School Uniforms', parent_id: null, icon: '👔', sort_order: 0 },
+      { id: 'games-attires', name: 'Games Attires', parent_id: null, icon: '🏃', sort_order: 1 },
+      { id: 'footwear', name: 'Footwear', parent_id: null, icon: '👟', sort_order: 2 },
+      { id: 'inner-wear', name: 'Inner Wear', parent_id: null, icon: '🧦', sort_order: 3 },
+      { id: 'beddings', name: 'Beddings', parent_id: null, icon: '🛏️', sort_order: 4 },
+      { id: 'school-bags', name: 'School Bags', parent_id: null, icon: '🎒', sort_order: 5 },
+      { id: 'schools', name: 'Schools', parent_id: null, icon: '🏫', sort_order: 6 },
     ]
     categories.forEach(cat => {
       db.prepare(`
@@ -165,53 +165,34 @@ module.exports = function migrate(db) {
     console.log('✅ Categories seeded')
 
     // Seed products & variants
-    const schoolUniformsCat = categories[0].id
-    const gamesAttiresCat = categories[1].id
-    const footwearCat = categories[2].id
-    const schoolBagsCat = categories[5].id
-
     const products = [
-      { id: uuidv4(), name: 'Navy Pullovers', category_id: schoolUniformsCat, price: 1500, variants: [
-        { color: 'Navy', color_hex: '#1a3a5c', size: 'S', stock: 25 },
-        { color: 'Navy', color_hex: '#1a3a5c', size: 'M', stock: 18 },
-        { color: 'Navy', color_hex: '#1a3a5c', size: 'L', stock: 12 },
-        { color: 'Navy', color_hex: '#1a3a5c', size: 'XL', stock: 8 },
+      { id: 'tmp-1', name: 'Navy Pullover', category_id: 'school-uniforms', subcategory: 'Pullovers', price: 1200, variants: [
+        { color: 'Navy', color_hex: '#1a3a5c', size: 'S', stock: 10 },
+        { color: 'Navy', color_hex: '#1a3a5c', size: 'M', stock: 10 },
+        { color: 'Navy', color_hex: '#1a3a5c', size: 'L', stock: 8 },
       ]},
-      { id: uuidv4(), name: 'White T-Shirts', category_id: schoolUniformsCat, price: 800, variants: [
-        { color: 'White', color_hex: '#ffffff', size: 'S', stock: 5 },
-        { color: 'White', color_hex: '#ffffff', size: 'M', stock: 15 },
-        { color: 'White', color_hex: '#ffffff', size: 'L', stock: 22 },
+      { id: 'tmp-2', name: 'School Shirt', category_id: 'school-uniforms', subcategory: 'Shirts', price: 650, variants: [
+        { color: 'White', color_hex: '#ffffff', size: 'S', stock: 15 },
+        { color: 'White', color_hex: '#ffffff', size: 'M', stock: 20 },
       ]},
-      { id: uuidv4(), name: 'Navy Trousers', category_id: schoolUniformsCat, price: 2500, variants: [
-        { color: 'Navy', color_hex: '#1a3a5c', size: '26', stock: 10 },
-        { color: 'Navy', color_hex: '#1a3a5c', size: '28', stock: 2 },  // Low stock
-        { color: 'Navy', color_hex: '#1a3a5c', size: '30', stock: 14 },
-        { color: 'Navy', color_hex: '#1a3a5c', size: '32', stock: 8 },
+      { id: 'tmp-3', name: 'Navy Trouser', category_id: 'school-uniforms', subcategory: 'Trousers', price: 1150, variants: [
+        { color: 'Navy', color_hex: '#1a3a5c', size: '28', stock: 10 },
+        { color: 'Navy', color_hex: '#1a3a5c', size: '30', stock: 10 },
       ]},
-      { id: uuidv4(), name: 'Red Tracksuits', category_id: gamesAttiresCat, price: 3200, variants: [
-        { color: 'Red', color_hex: '#e74c3c', size: 'S', stock: 8 },
-        { color: 'Red', color_hex: '#e74c3c', size: 'M', stock: 12 },
-        { color: 'Red', color_hex: '#e74c3c', size: 'L', stock: 3 },  // Low stock
-        { color: 'Red', color_hex: '#e74c3c', size: 'XL', stock: 5 },
+      { id: 'tmp-4', name: 'Toughees (Kids)', category_id: 'footwear', subcategory: 'Toughees', price: 2800, variants: [
+        { color: 'Black', color_hex: '#000000', size: '36', stock: 6 },
+        { color: 'Black', color_hex: '#000000', size: '38', stock: 6 },
       ]},
-      { id: uuidv4(), name: 'Black School Bag', category_id: schoolBagsCat, price: 2200, variants: [
-        { color: 'Black', color_hex: '#000000', size: '16"', stock: 18 },
-        { color: 'Black', color_hex: '#000000', size: '18"', stock: 4 },  // Low stock
-        { color: 'Black', color_hex: '#000000', size: '20"', stock: 7 },
-      ]},
-      { id: uuidv4(), name: 'Blue School Shoes', category_id: footwearCat, price: 3500, variants: [
-        { color: 'Blue', color_hex: '#3498db', size: '36', stock: 9 },
-        { color: 'Blue', color_hex: '#3498db', size: '38', stock: 14 },
-        { color: 'Blue', color_hex: '#3498db', size: '40', stock: 11 },
-        { color: 'Blue', color_hex: '#3498db', size: '42', stock: 7 },
+      { id: 'tmp-5', name: 'Canvas Backpack', category_id: 'school-bags', subcategory: 'Backpacks', price: 1800, variants: [
+        { color: 'Black', color_hex: '#000000', size: '18"', stock: 12 },
       ]},
     ]
 
     products.forEach(prod => {
       db.prepare(`
-        INSERT INTO products (id, name, category_id, price)
-        VALUES (?, ?, ?, ?)
-      `).run(prod.id, prod.name, prod.category_id, prod.price)
+        INSERT INTO products (id, name, category_id, subcategory, price)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(prod.id, prod.name, prod.category_id, prod.subcategory, prod.price)
 
       prod.variants.forEach(v => {
         const variantId = uuidv4()

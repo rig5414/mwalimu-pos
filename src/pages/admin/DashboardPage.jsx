@@ -36,10 +36,25 @@ export default function DashboardPage() {
       window.api.sales.getToday(),
       window.api.stock.getLowStock(),
     ]).then(([s, t, l]) => {
-      if (s.ok) { /* map summary */ }
+      if (s.ok && Array.isArray(s.data)) {
+        // getSummary returns rows grouped by payment_method — reduce to totals
+        const reduced = s.data.reduce(
+          (acc, row) => ({
+            revenue:      acc.revenue      + (Number(row.total_revenue) || 0),
+            transactions: acc.transactions + (Number(row.transaction_count) || 0),
+            items_sold:   acc.items_sold,   // not tracked in this query
+            low_stock:    acc.low_stock,
+          }),
+          { revenue: 0, transactions: 0, items_sold: 0, low_stock: 0 }
+        )
+        setSummary(reduced)
+      }
       if (t.ok) setSales(t.data)
-      if (l.ok) setLowStock(l.data)
-    })
+      if (l.ok) {
+        setLowStock(l.data)
+        setSummary(prev => ({ ...prev, low_stock: l.data.length }))
+      }
+    }).catch(() => { /* silent — dummy data already shown */ })
   }, [])
 
   const fmt = (key) => {

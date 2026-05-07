@@ -351,6 +351,12 @@ module.exports.register = function (ipcMain, db) {
     return db.prepare('SELECT * FROM clients ORDER BY name').all()
   })
 
+  handle('clients:getById', (id) => {
+    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id)
+    if (!client) throw new Error('Client not found')
+    return client
+  })
+
   handle('clients:create', ({ name, phone, school, notes }) => {
     const id = uuidv4()
     db.prepare(
@@ -391,6 +397,14 @@ module.exports.register = function (ipcMain, db) {
         "UPDATE users SET name=?, is_active=?, updated_at=datetime('now') WHERE id=?"
       ).run(name, is_active, id)
     }
+    return { ok: true }
+  })
+
+  handle('users:delete', (id) => {
+    // Soft-delete: mark inactive so audit history is preserved
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(id)
+    if (!user) throw new Error('User not found')
+    db.prepare("UPDATE users SET is_active = 0, updated_at = datetime('now') WHERE id = ?").run(id)
     return { ok: true }
   })
 

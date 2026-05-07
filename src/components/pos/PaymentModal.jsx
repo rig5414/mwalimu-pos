@@ -138,10 +138,10 @@ export default function PaymentModal({ onClose, onComplete, userId }) {
                   placeholder="07XXXXXXXX" autoFocus className="input text-lg" />
               </div>
               <div className="p-4 rounded-xl" style={{ background: '#fff8e8', border: '1.5px solid #f0c857' }}>
-                <p className="font-bold text-sm mb-1" style={{ color: '#8a5e00' }}>📲 STK Push</p>
+                <p className="font-bold text-sm mb-1" style={{ color: '#8a5e00' }}>📲 Record M-Pesa Payment</p>
                 <p className="text-xs" style={{ color: '#8a5e00' }}>
-                  Customer will receive a prompt to pay <strong>KES {total.toLocaleString()}</strong>.
-                  Confirm only after customer approves the request on their phone.
+                  Confirm that the customer has sent <strong>KES {total.toLocaleString()}</strong> via M-Pesa.
+                  Enter the phone number used. STK push integration is coming in a future update.
                 </p>
               </div>
             </div>

@@ -11,6 +11,14 @@ const DUMMY_CATEGORIES = [
   { id: 'schools', name: 'Schools' },
 ]
 
+const DUMMY_PRODUCTS = [
+  { id: 'tmp-1', name: 'Navy Pullover',   category_id: 'school-uniforms', subcategory: 'Pullovers',   price: 1200, total_stock: 28, is_active: 1, icon: '🧥' },
+  { id: 'tmp-2', name: 'School Shirt',    category_id: 'school-uniforms', subcategory: 'Shirts',      price: 650,  total_stock: 35, is_active: 1, icon: '👕' },
+  { id: 'tmp-3', name: 'Navy Trouser',    category_id: 'school-uniforms', subcategory: 'Trousers',    price: 1150, total_stock: 20, is_active: 1, icon: '👖' },
+  { id: 'tmp-4', name: 'Toughees (Kids)', category_id: 'footwear',        subcategory: 'Toughees',    price: 2800, total_stock: 12, is_active: 1, icon: '👞' },
+  { id: 'tmp-5', name: 'Canvas Backpack', category_id: 'school-bags',     subcategory: 'Backpacks',   price: 1800, total_stock: 12, is_active: 1, icon: '🎒' },
+]
+
 const CATEGORY_SUBCATEGORIES = {
   'school-uniforms': ['Pullovers', 'Shirts', 'Trousers', 'Dresses', 'Half Sweaters', 'Socks', 'Skirts', 'Marvins', 'Gloves'],
   'games-attires': ['Tshirts', 'Tracksuits', 'Games Shorts', 'Wrappers Bloomers', 'Jersey', 'Girls Shorts'],
@@ -23,27 +31,25 @@ const CATEGORY_SUBCATEGORIES = {
 
 const SCHOOL_ITEMS = ['Pullover', 'Half Sweater', 'Shirt', 'Dress', 'Girls Trouser', 'Long Trouser', 'Tracksuit', 'Socks', 'Tie', 'Marvin', 'Trouser', 'Tshirt', 'Girls Socks', 'Boys Socks']
 
+const BLANK_FORM = {
+  name: '',
+  category_id: DUMMY_CATEGORIES[0].id,
+  subcategory: '',
+  price: '',
+  barcode: '',
+  icon: '📦',
+}
+
 export default function ProductsPage() {
-  const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState(DUMMY_CATEGORIES)
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    category_id: DUMMY_CATEGORIES[0].id,
-    subcategory: '',
-    price: '',
-    barcode: '',
-    icon: '📦',
-  })
-  const [variants, setVariants] = useState([])
-  const [newVariant, setNewVariant] = useState({
-    color: '',
-    color_hex: '#1a3a5c',
-    size: '',
-    stock_qty: '',
-  })
+  const [products, setProducts]         = useState([])
+  const [categories, setCategories]     = useState(DUMMY_CATEGORIES)
+  const [showForm, setShowForm]         = useState(false)
+  const [editingId, setEditingId]       = useState(null)
+  const [saving, setSaving]             = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null) // product to confirm deletion
+  const [formData, setFormData]         = useState(BLANK_FORM)
+  const [variants, setVariants]         = useState([])
+  const [newVariant, setNewVariant]     = useState({ color: '', color_hex: '#1a3a5c', size: '', stock_qty: '' })
   const [selectedSchoolItem, setSelectedSchoolItem] = useState('')
   const toast = useToast()
 
@@ -55,7 +61,7 @@ export default function ProductsPage() {
   useEffect(() => {
     const validSubcats = CATEGORY_SUBCATEGORIES[formData.category_id] || []
     if (formData.subcategory && !validSubcats.includes(formData.subcategory)) {
-      setFormData((prev) => ({ ...prev, subcategory: '' }))
+      setFormData(prev => ({ ...prev, subcategory: '' }))
     }
   }, [formData.category_id, formData.subcategory])
 
@@ -65,9 +71,12 @@ export default function ProductsPage() {
         const res = await window.api.products.getAll({ include_inactive: true })
         if (!res.ok) throw new Error(res.error)
         setProducts(res.data || [])
+      } else {
+        // Dev mode fallback
+        setProducts(DUMMY_PRODUCTS)
       }
-    } catch (_err) {
-      toast.error('Failed to load products')
+    } catch (err) {
+      toast.error('Failed to load products: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -78,9 +87,10 @@ export default function ProductsPage() {
         if (!res.ok) throw new Error(res.error)
         if (res.data?.length) {
           setCategories(res.data)
-          setFormData((prev) => ({ ...prev, category_id: prev.category_id || res.data[0].id }))
+          setFormData(prev => ({ ...prev, category_id: prev.category_id || res.data[0].id }))
         }
       }
+      // else: keep DUMMY_CATEGORIES as initial state
     } catch (_err) {
       toast.warning('Using local category list')
     }
@@ -123,12 +133,13 @@ export default function ProductsPage() {
         }
         await loadProducts()
       } else {
+        // Dev mode local state
         const tempId = editingId || `tmp-${Date.now()}`
         if (editingId) {
-          setProducts((prev) => prev.map((p) => (p.id === editingId ? { ...p, ...formData, price: Number(formData.price) } : p)))
+          setProducts(prev => prev.map(p => p.id === editingId ? { ...p, ...formData, price: Number(formData.price) } : p))
           toast.success(`Product "${formData.name}" updated`)
         } else {
-          setProducts((prev) => [...prev, { id: tempId, ...formData, price: Number(formData.price), is_active: 1 }])
+          setProducts(prev => [...prev, { id: tempId, ...formData, price: Number(formData.price), is_active: 1 }])
           toast.success(`Product "${formData.name}" added`)
         }
       }
@@ -141,12 +152,12 @@ export default function ProductsPage() {
   }
 
   function handleAddVariant() {
-    if (!newVariant.color.trim() || !newVariant.size.trim() || Number(newVariant.stock_qty) <= 0) {
-      toast.error('Please fill all variant fields')
+    if (!newVariant.color.trim() || !newVariant.size.trim() || Number(newVariant.stock_qty) < 0 || newVariant.stock_qty === '') {
+      toast.error('Please fill color and size. Stock qty must be 0 or more.')
       return
     }
 
-    setVariants((prev) => [
+    setVariants(prev => [
       ...prev,
       {
         id: `v-${Date.now()}`,
@@ -161,7 +172,7 @@ export default function ProductsPage() {
   }
 
   function removeVariant(variantId) {
-    setVariants((prev) => prev.filter((v) => v.id !== variantId))
+    setVariants(prev => prev.filter(v => v.id !== variantId))
   }
 
   async function toggleActive(product) {
@@ -179,28 +190,36 @@ export default function ProductsPage() {
         })
         if (!res.ok) throw new Error(res.error)
       }
-      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, is_active: nextActive } : p)))
-      toast.info(`Product marked as ${nextActive ? 'active' : 'inactive'}`)
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_active: nextActive } : p))
+      toast.info(`"${product.name}" marked as ${nextActive ? 'active' : 'inactive'}`)
     } catch (err) {
       toast.error(err.message || 'Failed to update status')
     }
   }
 
-  async function deleteProduct(productId) {
-    const productName = products.find((p) => p.id === productId)?.name || 'Product'
+  // Show confirmation dialog before deleting
+  function requestDelete(product) {
+    setConfirmDelete(product)
+  }
+
+  async function confirmDeleteProduct() {
+    if (!confirmDelete) return
+    const productName = confirmDelete.name
     try {
       if (window.api) {
-        const res = await window.api.products.delete(productId)
+        const res = await window.api.products.delete(confirmDelete.id)
         if (!res.ok) throw new Error(res.error)
       }
-      setProducts((prev) => prev.filter((p) => p.id !== productId))
+      setProducts(prev => prev.filter(p => p.id !== confirmDelete.id))
       toast.success(`Product "${productName}" deleted`)
     } catch (err) {
       toast.error(err.message || 'Failed to delete product')
+    } finally {
+      setConfirmDelete(null)
     }
   }
 
-  function editProduct(product) {
+  async function editProduct(product) {
     setFormData({
       name: product.name || '',
       category_id: product.category_id || (categories[0]?.id || DUMMY_CATEGORIES[0].id),
@@ -210,8 +229,21 @@ export default function ProductsPage() {
       icon: product.icon || '📦',
     })
 
-    // In edit mode, variants list is used only for newly added variants.
-    setVariants([])
+    // Load existing variants from DB (or clear in dev mode)
+    if (window.api) {
+      try {
+        const res = await window.api.products.getById(product.id)
+        if (res.ok && res.data?.variants) {
+          setVariants(res.data.variants)
+        } else {
+          setVariants([])
+        }
+      } catch {
+        setVariants([])
+      }
+    } else {
+      setVariants([])
+    }
 
     setEditingId(product.id)
     setShowForm(true)
@@ -219,12 +251,8 @@ export default function ProductsPage() {
 
   function resetForm() {
     setFormData({
-      name: '',
+      ...BLANK_FORM,
       category_id: categories[0]?.id || DUMMY_CATEGORIES[0].id,
-      subcategory: '',
-      price: '',
-      barcode: '',
-      icon: '📦',
     })
     setVariants([])
     setNewVariant({ color: '', color_hex: '#1a3a5c', size: '', stock_qty: '' })
@@ -258,7 +286,7 @@ export default function ProductsPage() {
                   type="text"
                   className="input"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Navy School Trouser"
                 />
               </div>
@@ -269,7 +297,7 @@ export default function ProductsPage() {
                   type="number"
                   className="input"
                   value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  onChange={e => setFormData({ ...formData, price: e.target.value })}
                   placeholder="1150"
                   min="0"
                 />
@@ -280,7 +308,7 @@ export default function ProductsPage() {
                 <select
                   className="input"
                   value={formData.category_id}
-                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                  onChange={e => setFormData({ ...formData, category_id: e.target.value })}
                 >
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -293,10 +321,10 @@ export default function ProductsPage() {
                 <select
                   className="input"
                   value={formData.subcategory}
-                  onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+                  onChange={e => setFormData({ ...formData, subcategory: e.target.value })}
                 >
                   <option value="">Select subcategory</option>
-                  {categorySubcategories.map((subcat) => (
+                  {categorySubcategories.map(subcat => (
                     <option key={subcat} value={subcat}>{subcat}</option>
                   ))}
                 </select>
@@ -306,10 +334,10 @@ export default function ProductsPage() {
                       <select
                         className="input text-sm"
                         value={selectedSchoolItem}
-                        onChange={(e) => setSelectedSchoolItem(e.target.value)}
+                        onChange={e => setSelectedSchoolItem(e.target.value)}
                       >
                         <option value="">Quick pick school item</option>
-                        {SCHOOL_ITEMS.map((item) => (
+                        {SCHOOL_ITEMS.map(item => (
                           <option key={item} value={item}>{item}</option>
                         ))}
                       </select>
@@ -318,7 +346,7 @@ export default function ProductsPage() {
                         className="btn-secondary px-3 py-2 text-sm whitespace-nowrap"
                         onClick={() => {
                           if (!formData.subcategory || !selectedSchoolItem) return
-                          setFormData((prev) => ({ ...prev, name: `${prev.subcategory} - ${selectedSchoolItem}` }))
+                          setFormData(prev => ({ ...prev, name: `${prev.subcategory} - ${selectedSchoolItem}` }))
                         }}
                       >
                         Use
@@ -337,38 +365,35 @@ export default function ProductsPage() {
                   type="text"
                   className="input"
                   value={formData.barcode}
-                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                  onChange={e => setFormData({ ...formData, barcode: e.target.value })}
                   placeholder="e.g., 6291041500217"
                 />
               </div>
 
               <div>
-                <label className="label">Total Stock</label>
-                <input
-                  type="number"
-                  className="input"
-                  value={formData.total_stock}
-                  onChange={(e) => setFormData({ ...formData, total_stock: e.target.value })}
-                  placeholder="18"
-                  min="0"
-                />
-              </div>
-
-              <div>
-                <label className="label">Icon</label>
+                <label className="label">Icon (emoji)</label>
                 <input
                   type="text"
                   className="input"
                   value={formData.icon}
-                  onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                  maxLength="1"
+                  onChange={e => setFormData({ ...formData, icon: e.target.value })}
+                  maxLength="2"
                   placeholder="📦"
                 />
+                <p className="text-xs text-gray-400 mt-1">UI display only — icon persistence is Phase 3.</p>
               </div>
             </div>
 
+            {/* Variants */}
             <div className="space-y-3 pt-4 border-t">
-              <h3 className="font-semibold text-gray-700">Variants</h3>
+              <h3 className="font-semibold text-gray-700">
+                Variants
+                {editingId && (
+                  <span className="ml-2 text-xs font-normal text-gray-400">
+                    (Existing variants shown · add new ones below)
+                  </span>
+                )}
+              </h3>
 
               <div className="grid grid-cols-5 gap-2">
                 <input
@@ -376,27 +401,27 @@ export default function ProductsPage() {
                   className="input text-sm"
                   placeholder="Color"
                   value={newVariant.color}
-                  onChange={(e) => setNewVariant({ ...newVariant, color: e.target.value })}
+                  onChange={e => setNewVariant({ ...newVariant, color: e.target.value })}
                 />
                 <input
                   type="color"
                   className="input"
                   value={newVariant.color_hex}
-                  onChange={(e) => setNewVariant({ ...newVariant, color_hex: e.target.value })}
+                  onChange={e => setNewVariant({ ...newVariant, color_hex: e.target.value })}
                 />
                 <input
                   type="text"
                   className="input text-sm"
                   placeholder="Size"
                   value={newVariant.size}
-                  onChange={(e) => setNewVariant({ ...newVariant, size: e.target.value })}
+                  onChange={e => setNewVariant({ ...newVariant, size: e.target.value })}
                 />
                 <input
                   type="number"
                   className="input text-sm"
                   placeholder="Stock"
                   value={newVariant.stock_qty}
-                  onChange={(e) => setNewVariant({ ...newVariant, stock_qty: e.target.value })}
+                  onChange={e => setNewVariant({ ...newVariant, stock_qty: e.target.value })}
                   min="0"
                 />
                 <button
@@ -467,25 +492,25 @@ export default function ProductsPage() {
                 <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{product.icon}</span>
+                      <span className="text-xl">{product.icon || '📦'}</span>
                       <span className="font-medium text-gray-900">{product.name}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {categories.find(c => c.id === product.category_id)?.name || 'Uncategorized'}
+                    {categories.find(c => c.id === product.category_id)?.name || product.category_name || 'Uncategorized'}
                   </td>
                   <td className="px-4 py-3 font-semibold text-primary">
                     Ksh. {product.price?.toLocaleString()}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-sm font-medium ${
-                      product.total_stock === 0
+                      (product.total_stock ?? 0) === 0
                         ? 'text-red-600'
-                        : product.total_stock <= 5
+                        : (product.total_stock ?? 0) <= 5
                         ? 'text-orange-600'
                         : 'text-green-600'
                     }`}>
-                      {product.total_stock} units
+                      {product.total_stock ?? '—'} units
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -507,7 +532,7 @@ export default function ProductsPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => deleteProduct(product.id)}
+                        onClick={() => requestDelete(product)}
                         className="px-3 py-1 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
                       >
                         Delete
@@ -526,6 +551,38 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+
+      {/* ── Delete Confirmation Modal ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center"
+             style={{ background: 'rgba(10,20,40,0.6)' }}
+             onClick={e => e.target === e.currentTarget && setConfirmDelete(null)}>
+          <div className="bg-white rounded-2xl p-7 w-full max-w-sm mx-4 shadow-modal">
+            <div className="text-center mb-5">
+              <div className="text-5xl mb-3">🗑️</div>
+              <h3 className="font-head font-bold text-lg text-gray-900 mb-1">Delete Product?</h3>
+              <p className="text-sm text-gray-500">
+                <strong className="text-gray-800">"{confirmDelete.name}"</strong> and all its variants will be permanently removed.
+                This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-200 font-head font-semibold text-gray-500 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteProduct}
+                className="flex-[2] py-3 rounded-xl bg-red-500 text-white font-head font-bold cursor-pointer hover:bg-red-600"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

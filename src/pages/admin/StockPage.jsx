@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useToast } from '../../hooks/useToast'
 
 const DUMMY_STOCK = [
   { id:'v1a', product_name:'Pull-over Sweater', category_name:'Uniforms',   color:'Navy',   size:'S',        stock_qty:6  },
@@ -17,6 +18,7 @@ export default function StockPageAdmin() {
   const [modal, setModal]       = useState(null) // { type:'add'|'remove', item }
   const [qty, setQty]           = useState(10)
   const [saving, setSaving]     = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
     if (!window.api) return
@@ -32,11 +34,15 @@ export default function StockPageAdmin() {
     try {
       if (window.api) {
         const fn = modal.type === 'add' ? window.api.stock.addStock : window.api.stock.removeStock
-        await fn({ variant_id: modal.item.id, quantity: qty })
+        const res = await fn({ variant_id: modal.item.id, quantity: qty })
+        if (!res.ok) throw new Error(res.error)
       }
       const delta = modal.type === 'add' ? qty : -qty
       setStock(prev => prev.map(s => s.id === modal.item.id ? { ...s, stock_qty: s.stock_qty + delta } : s))
+      toast.success(`${modal.type === 'add' ? 'Added' : 'Removed'} ${qty} units for ${modal.item.product_name}`)
       setModal(null)
+    } catch (err) {
+      toast.error(err.message || 'Failed to update stock')
     } finally {
       setSaving(false)
     }
