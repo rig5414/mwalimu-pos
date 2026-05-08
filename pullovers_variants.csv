@@ -1,0 +1,317 @@
+id,product_id,color,color_hex,size,sku,stock_qty,created_at
+v_1,prod_plain_pull,Maroon,,24,PLAIN-MAR-24,0,2026-05-08 12:00:00
+v_2,prod_plain_pull,Maroon,,25,PLAIN-MAR-25,0,2026-05-08 12:00:00
+v_3,prod_plain_pull,Maroon,,26,PLAIN-MAR-26,0,2026-05-08 12:00:00
+v_4,prod_plain_pull,Maroon,,27,PLAIN-MAR-27,0,2026-05-08 12:00:00
+v_5,prod_plain_pull,Maroon,,28,PLAIN-MAR-28,0,2026-05-08 12:00:00
+v_6,prod_plain_pull,Maroon,,29,PLAIN-MAR-29,0,2026-05-08 12:00:00
+v_7,prod_plain_pull,Maroon,,30,PLAIN-MAR-30,0,2026-05-08 12:00:00
+v_8,prod_plain_pull,Maroon,,31,PLAIN-MAR-31,0,2026-05-08 12:00:00
+v_9,prod_plain_pull,Maroon,,32,PLAIN-MAR-32,0,2026-05-08 12:00:00
+v_10,prod_plain_pull,Maroon,,33,PLAIN-MAR-33,0,2026-05-08 12:00:00
+v_11,prod_plain_pull,Maroon,,34,PLAIN-MAR-34,0,2026-05-08 12:00:00
+v_12,prod_plain_pull,Maroon,,35,PLAIN-MAR-35,0,2026-05-08 12:00:00
+v_13,prod_plain_pull,Maroon,,36,PLAIN-MAR-36,0,2026-05-08 12:00:00
+v_14,prod_plain_pull,Maroon,,37,PLAIN-MAR-37,0,2026-05-08 12:00:00
+v_15,prod_plain_pull,Maroon,,38,PLAIN-MAR-38,0,2026-05-08 12:00:00
+v_16,prod_plain_pull,Maroon,,39,PLAIN-MAR-39,0,2026-05-08 12:00:00
+v_17,prod_plain_pull,Maroon,,40,PLAIN-MAR-40,0,2026-05-08 12:00:00
+v_18,prod_plain_pull,Green,,24,PLAIN-GRE-24,0,2026-05-08 12:00:00
+v_19,prod_plain_pull,Green,,25,PLAIN-GRE-25,0,2026-05-08 12:00:00
+v_20,prod_plain_pull,Green,,26,PLAIN-GRE-26,0,2026-05-08 12:00:00
+v_21,prod_plain_pull,Green,,27,PLAIN-GRE-27,0,2026-05-08 12:00:00
+v_22,prod_plain_pull,Green,,28,PLAIN-GRE-28,0,2026-05-08 12:00:00
+v_23,prod_plain_pull,Green,,29,PLAIN-GRE-29,0,2026-05-08 12:00:00
+v_24,prod_plain_pull,Green,,30,PLAIN-GRE-30,0,2026-05-08 12:00:00
+v_25,prod_plain_pull,Green,,31,PLAIN-GRE-31,0,2026-05-08 12:00:00
+v_26,prod_plain_pull,Green,,32,PLAIN-GRE-32,0,2026-05-08 12:00:00
+v_27,prod_plain_pull,Green,,33,PLAIN-GRE-33,0,2026-05-08 12:00:00
+v_28,prod_plain_pull,Green,,34,PLAIN-GRE-34,0,2026-05-08 12:00:00
+v_29,prod_plain_pull,Green,,35,PLAIN-GRE-35,0,2026-05-08 12:00:00
+v_30,prod_plain_pull,Green,,36,PLAIN-GRE-36,0,2026-05-08 12:00:00
+v_31,prod_plain_pull,Green,,37,PLAIN-GRE-37,0,2026-05-08 12:00:00
+v_32,prod_plain_pull,Green,,38,PLAIN-GRE-38,0,2026-05-08 12:00:00
+v_33,prod_plain_pull,Green,,39,PLAIN-GRE-39,0,2026-05-08 12:00:00
+v_34,prod_plain_pull,Green,,40,PLAIN-GRE-40,0,2026-05-08 12:00:00
+v_35,prod_plain_pull,Grey,,24,PLAIN-GRE-24,0,2026-05-08 12:00:00
+v_36,prod_plain_pull,Grey,,25,PLAIN-GRE-25,0,2026-05-08 12:00:00
+v_37,prod_plain_pull,Grey,,26,PLAIN-GRE-26,0,2026-05-08 12:00:00
+v_38,prod_plain_pull,Grey,,27,PLAIN-GRE-27,0,2026-05-08 12:00:00
+v_39,prod_plain_pull,Grey,,28,PLAIN-GRE-28,0,2026-05-08 12:00:00
+v_40,prod_plain_pull,Grey,,29,PLAIN-GRE-29,0,2026-05-08 12:00:00
+v_41,prod_plain_pull,Grey,,30,PLAIN-GRE-30,0,2026-05-08 12:00:00
+v_42,prod_plain_pull,Grey,,31,PLAIN-GRE-31,0,2026-05-08 12:00:00
+v_43,prod_plain_pull,Grey,,32,PLAIN-GRE-32,0,2026-05-08 12:00:00
+v_44,prod_plain_pull,Grey,,33,PLAIN-GRE-33,0,2026-05-08 12:00:00
+v_45,prod_plain_pull,Grey,,34,PLAIN-GRE-34,0,2026-05-08 12:00:00
+v_46,prod_plain_pull,Grey,,35,PLAIN-GRE-35,0,2026-05-08 12:00:00
+v_47,prod_plain_pull,Grey,,36,PLAIN-GRE-36,0,2026-05-08 12:00:00
+v_48,prod_plain_pull,Grey,,37,PLAIN-GRE-37,0,2026-05-08 12:00:00
+v_49,prod_plain_pull,Grey,,38,PLAIN-GRE-38,0,2026-05-08 12:00:00
+v_50,prod_plain_pull,Grey,,39,PLAIN-GRE-39,0,2026-05-08 12:00:00
+v_51,prod_plain_pull,Grey,,40,PLAIN-GRE-40,0,2026-05-08 12:00:00
+v_52,prod_plain_pull,Royal Blue,,24,PLAIN-ROY-24,0,2026-05-08 12:00:00
+v_53,prod_plain_pull,Royal Blue,,25,PLAIN-ROY-25,0,2026-05-08 12:00:00
+v_54,prod_plain_pull,Royal Blue,,26,PLAIN-ROY-26,0,2026-05-08 12:00:00
+v_55,prod_plain_pull,Royal Blue,,27,PLAIN-ROY-27,0,2026-05-08 12:00:00
+v_56,prod_plain_pull,Royal Blue,,28,PLAIN-ROY-28,0,2026-05-08 12:00:00
+v_57,prod_plain_pull,Royal Blue,,29,PLAIN-ROY-29,0,2026-05-08 12:00:00
+v_58,prod_plain_pull,Royal Blue,,30,PLAIN-ROY-30,0,2026-05-08 12:00:00
+v_59,prod_plain_pull,Royal Blue,,31,PLAIN-ROY-31,0,2026-05-08 12:00:00
+v_60,prod_plain_pull,Royal Blue,,32,PLAIN-ROY-32,0,2026-05-08 12:00:00
+v_61,prod_plain_pull,Royal Blue,,33,PLAIN-ROY-33,0,2026-05-08 12:00:00
+v_62,prod_plain_pull,Royal Blue,,34,PLAIN-ROY-34,0,2026-05-08 12:00:00
+v_63,prod_plain_pull,Royal Blue,,35,PLAIN-ROY-35,0,2026-05-08 12:00:00
+v_64,prod_plain_pull,Royal Blue,,36,PLAIN-ROY-36,0,2026-05-08 12:00:00
+v_65,prod_plain_pull,Royal Blue,,37,PLAIN-ROY-37,0,2026-05-08 12:00:00
+v_66,prod_plain_pull,Royal Blue,,38,PLAIN-ROY-38,0,2026-05-08 12:00:00
+v_67,prod_plain_pull,Royal Blue,,39,PLAIN-ROY-39,0,2026-05-08 12:00:00
+v_68,prod_plain_pull,Royal Blue,,40,PLAIN-ROY-40,0,2026-05-08 12:00:00
+v_69,prod_plain_pull,Red,,24,PLAIN-RED-24,0,2026-05-08 12:00:00
+v_70,prod_plain_pull,Red,,25,PLAIN-RED-25,0,2026-05-08 12:00:00
+v_71,prod_plain_pull,Red,,26,PLAIN-RED-26,0,2026-05-08 12:00:00
+v_72,prod_plain_pull,Red,,27,PLAIN-RED-27,0,2026-05-08 12:00:00
+v_73,prod_plain_pull,Red,,28,PLAIN-RED-28,0,2026-05-08 12:00:00
+v_74,prod_plain_pull,Red,,29,PLAIN-RED-29,0,2026-05-08 12:00:00
+v_75,prod_plain_pull,Red,,30,PLAIN-RED-30,0,2026-05-08 12:00:00
+v_76,prod_plain_pull,Red,,31,PLAIN-RED-31,0,2026-05-08 12:00:00
+v_77,prod_plain_pull,Red,,32,PLAIN-RED-32,0,2026-05-08 12:00:00
+v_78,prod_plain_pull,Red,,33,PLAIN-RED-33,0,2026-05-08 12:00:00
+v_79,prod_plain_pull,Red,,34,PLAIN-RED-34,0,2026-05-08 12:00:00
+v_80,prod_plain_pull,Red,,35,PLAIN-RED-35,0,2026-05-08 12:00:00
+v_81,prod_plain_pull,Red,,36,PLAIN-RED-36,0,2026-05-08 12:00:00
+v_82,prod_plain_pull,Red,,37,PLAIN-RED-37,0,2026-05-08 12:00:00
+v_83,prod_plain_pull,Red,,38,PLAIN-RED-38,0,2026-05-08 12:00:00
+v_84,prod_plain_pull,Red,,39,PLAIN-RED-39,0,2026-05-08 12:00:00
+v_85,prod_plain_pull,Red,,40,PLAIN-RED-40,0,2026-05-08 12:00:00
+v_86,prod_plain_pull,Navy Blue,,24,PLAIN-NAV-24,0,2026-05-08 12:00:00
+v_87,prod_plain_pull,Navy Blue,,25,PLAIN-NAV-25,0,2026-05-08 12:00:00
+v_88,prod_plain_pull,Navy Blue,,26,PLAIN-NAV-26,0,2026-05-08 12:00:00
+v_89,prod_plain_pull,Navy Blue,,27,PLAIN-NAV-27,0,2026-05-08 12:00:00
+v_90,prod_plain_pull,Navy Blue,,28,PLAIN-NAV-28,0,2026-05-08 12:00:00
+v_91,prod_plain_pull,Navy Blue,,29,PLAIN-NAV-29,0,2026-05-08 12:00:00
+v_92,prod_plain_pull,Navy Blue,,30,PLAIN-NAV-30,0,2026-05-08 12:00:00
+v_93,prod_plain_pull,Navy Blue,,31,PLAIN-NAV-31,0,2026-05-08 12:00:00
+v_94,prod_plain_pull,Navy Blue,,32,PLAIN-NAV-32,0,2026-05-08 12:00:00
+v_95,prod_plain_pull,Navy Blue,,33,PLAIN-NAV-33,0,2026-05-08 12:00:00
+v_96,prod_plain_pull,Navy Blue,,34,PLAIN-NAV-34,0,2026-05-08 12:00:00
+v_97,prod_plain_pull,Navy Blue,,35,PLAIN-NAV-35,0,2026-05-08 12:00:00
+v_98,prod_plain_pull,Navy Blue,,36,PLAIN-NAV-36,0,2026-05-08 12:00:00
+v_99,prod_plain_pull,Navy Blue,,37,PLAIN-NAV-37,0,2026-05-08 12:00:00
+v_100,prod_plain_pull,Navy Blue,,38,PLAIN-NAV-38,0,2026-05-08 12:00:00
+v_101,prod_plain_pull,Navy Blue,,39,PLAIN-NAV-39,0,2026-05-08 12:00:00
+v_102,prod_plain_pull,Navy Blue,,40,PLAIN-NAV-40,0,2026-05-08 12:00:00
+v_103,prod_plain_pull,Jungle Green,,24,PLAIN-JUN-24,0,2026-05-08 12:00:00
+v_104,prod_plain_pull,Jungle Green,,25,PLAIN-JUN-25,0,2026-05-08 12:00:00
+v_105,prod_plain_pull,Jungle Green,,26,PLAIN-JUN-26,0,2026-05-08 12:00:00
+v_106,prod_plain_pull,Jungle Green,,27,PLAIN-JUN-27,0,2026-05-08 12:00:00
+v_107,prod_plain_pull,Jungle Green,,28,PLAIN-JUN-28,0,2026-05-08 12:00:00
+v_108,prod_plain_pull,Jungle Green,,29,PLAIN-JUN-29,0,2026-05-08 12:00:00
+v_109,prod_plain_pull,Jungle Green,,30,PLAIN-JUN-30,0,2026-05-08 12:00:00
+v_110,prod_plain_pull,Jungle Green,,31,PLAIN-JUN-31,0,2026-05-08 12:00:00
+v_111,prod_plain_pull,Jungle Green,,32,PLAIN-JUN-32,0,2026-05-08 12:00:00
+v_112,prod_plain_pull,Jungle Green,,33,PLAIN-JUN-33,0,2026-05-08 12:00:00
+v_113,prod_plain_pull,Jungle Green,,34,PLAIN-JUN-34,0,2026-05-08 12:00:00
+v_114,prod_plain_pull,Jungle Green,,35,PLAIN-JUN-35,0,2026-05-08 12:00:00
+v_115,prod_plain_pull,Jungle Green,,36,PLAIN-JUN-36,0,2026-05-08 12:00:00
+v_116,prod_plain_pull,Jungle Green,,37,PLAIN-JUN-37,0,2026-05-08 12:00:00
+v_117,prod_plain_pull,Jungle Green,,38,PLAIN-JUN-38,0,2026-05-08 12:00:00
+v_118,prod_plain_pull,Jungle Green,,39,PLAIN-JUN-39,0,2026-05-08 12:00:00
+v_119,prod_plain_pull,Jungle Green,,40,PLAIN-JUN-40,0,2026-05-08 12:00:00
+v_120,prod_plain_pull,Beige,,24,PLAIN-BEI-24,0,2026-05-08 12:00:00
+v_121,prod_plain_pull,Beige,,25,PLAIN-BEI-25,0,2026-05-08 12:00:00
+v_122,prod_plain_pull,Beige,,26,PLAIN-BEI-26,0,2026-05-08 12:00:00
+v_123,prod_plain_pull,Beige,,27,PLAIN-BEI-27,0,2026-05-08 12:00:00
+v_124,prod_plain_pull,Beige,,28,PLAIN-BEI-28,0,2026-05-08 12:00:00
+v_125,prod_plain_pull,Beige,,29,PLAIN-BEI-29,0,2026-05-08 12:00:00
+v_126,prod_plain_pull,Beige,,30,PLAIN-BEI-30,0,2026-05-08 12:00:00
+v_127,prod_plain_pull,Beige,,31,PLAIN-BEI-31,0,2026-05-08 12:00:00
+v_128,prod_plain_pull,Beige,,32,PLAIN-BEI-32,0,2026-05-08 12:00:00
+v_129,prod_plain_pull,Beige,,33,PLAIN-BEI-33,0,2026-05-08 12:00:00
+v_130,prod_plain_pull,Beige,,34,PLAIN-BEI-34,0,2026-05-08 12:00:00
+v_131,prod_plain_pull,Beige,,35,PLAIN-BEI-35,0,2026-05-08 12:00:00
+v_132,prod_plain_pull,Beige,,36,PLAIN-BEI-36,0,2026-05-08 12:00:00
+v_133,prod_plain_pull,Beige,,37,PLAIN-BEI-37,0,2026-05-08 12:00:00
+v_134,prod_plain_pull,Beige,,38,PLAIN-BEI-38,0,2026-05-08 12:00:00
+v_135,prod_plain_pull,Beige,,39,PLAIN-BEI-39,0,2026-05-08 12:00:00
+v_136,prod_plain_pull,Beige,,40,PLAIN-BEI-40,0,2026-05-08 12:00:00
+v_137,prod_plain_pull,Dark Brown,,24,PLAIN-DAR-24,0,2026-05-08 12:00:00
+v_138,prod_plain_pull,Dark Brown,,25,PLAIN-DAR-25,0,2026-05-08 12:00:00
+v_139,prod_plain_pull,Dark Brown,,26,PLAIN-DAR-26,0,2026-05-08 12:00:00
+v_140,prod_plain_pull,Dark Brown,,27,PLAIN-DAR-27,0,2026-05-08 12:00:00
+v_141,prod_plain_pull,Dark Brown,,28,PLAIN-DAR-28,0,2026-05-08 12:00:00
+v_142,prod_plain_pull,Dark Brown,,29,PLAIN-DAR-29,0,2026-05-08 12:00:00
+v_143,prod_plain_pull,Dark Brown,,30,PLAIN-DAR-30,0,2026-05-08 12:00:00
+v_144,prod_plain_pull,Dark Brown,,31,PLAIN-DAR-31,0,2026-05-08 12:00:00
+v_145,prod_plain_pull,Dark Brown,,32,PLAIN-DAR-32,0,2026-05-08 12:00:00
+v_146,prod_plain_pull,Dark Brown,,33,PLAIN-DAR-33,0,2026-05-08 12:00:00
+v_147,prod_plain_pull,Dark Brown,,34,PLAIN-DAR-34,0,2026-05-08 12:00:00
+v_148,prod_plain_pull,Dark Brown,,35,PLAIN-DAR-35,0,2026-05-08 12:00:00
+v_149,prod_plain_pull,Dark Brown,,36,PLAIN-DAR-36,0,2026-05-08 12:00:00
+v_150,prod_plain_pull,Dark Brown,,37,PLAIN-DAR-37,0,2026-05-08 12:00:00
+v_151,prod_plain_pull,Dark Brown,,38,PLAIN-DAR-38,0,2026-05-08 12:00:00
+v_152,prod_plain_pull,Dark Brown,,39,PLAIN-DAR-39,0,2026-05-08 12:00:00
+v_153,prod_plain_pull,Dark Brown,,40,PLAIN-DAR-40,0,2026-05-08 12:00:00
+v_154,prod_striped_pull,Navy White,,24,STRIPE-NAVY-24,0,2026-05-08 12:00:00
+v_155,prod_striped_pull,Navy White,,25,STRIPE-NAVY-25,0,2026-05-08 12:00:00
+v_156,prod_striped_pull,Navy White,,26,STRIPE-NAVY-26,0,2026-05-08 12:00:00
+v_157,prod_striped_pull,Navy White,,27,STRIPE-NAVY-27,0,2026-05-08 12:00:00
+v_158,prod_striped_pull,Navy White,,28,STRIPE-NAVY-28,0,2026-05-08 12:00:00
+v_159,prod_striped_pull,Navy White,,29,STRIPE-NAVY-29,0,2026-05-08 12:00:00
+v_160,prod_striped_pull,Navy White,,30,STRIPE-NAVY-30,0,2026-05-08 12:00:00
+v_161,prod_striped_pull,Navy White,,31,STRIPE-NAVY-31,0,2026-05-08 12:00:00
+v_162,prod_striped_pull,Navy White,,32,STRIPE-NAVY-32,0,2026-05-08 12:00:00
+v_163,prod_striped_pull,Navy White,,33,STRIPE-NAVY-33,0,2026-05-08 12:00:00
+v_164,prod_striped_pull,Navy White,,34,STRIPE-NAVY-34,0,2026-05-08 12:00:00
+v_165,prod_striped_pull,Navy White,,35,STRIPE-NAVY-35,0,2026-05-08 12:00:00
+v_166,prod_striped_pull,Navy White,,36,STRIPE-NAVY-36,0,2026-05-08 12:00:00
+v_167,prod_striped_pull,Navy White,,37,STRIPE-NAVY-37,0,2026-05-08 12:00:00
+v_168,prod_striped_pull,Navy White,,38,STRIPE-NAVY-38,0,2026-05-08 12:00:00
+v_169,prod_striped_pull,Navy White,,39,STRIPE-NAVY-39,0,2026-05-08 12:00:00
+v_170,prod_striped_pull,Navy White,,40,STRIPE-NAVY-40,0,2026-05-08 12:00:00
+v_171,prod_striped_pull,Grey White,,24,STRIPE-GREY-24,0,2026-05-08 12:00:00
+v_172,prod_striped_pull,Grey White,,25,STRIPE-GREY-25,0,2026-05-08 12:00:00
+v_173,prod_striped_pull,Grey White,,26,STRIPE-GREY-26,0,2026-05-08 12:00:00
+v_174,prod_striped_pull,Grey White,,27,STRIPE-GREY-27,0,2026-05-08 12:00:00
+v_175,prod_striped_pull,Grey White,,28,STRIPE-GREY-28,0,2026-05-08 12:00:00
+v_176,prod_striped_pull,Grey White,,29,STRIPE-GREY-29,0,2026-05-08 12:00:00
+v_177,prod_striped_pull,Grey White,,30,STRIPE-GREY-30,0,2026-05-08 12:00:00
+v_178,prod_striped_pull,Grey White,,31,STRIPE-GREY-31,0,2026-05-08 12:00:00
+v_179,prod_striped_pull,Grey White,,32,STRIPE-GREY-32,0,2026-05-08 12:00:00
+v_180,prod_striped_pull,Grey White,,33,STRIPE-GREY-33,0,2026-05-08 12:00:00
+v_181,prod_striped_pull,Grey White,,34,STRIPE-GREY-34,0,2026-05-08 12:00:00
+v_182,prod_striped_pull,Grey White,,35,STRIPE-GREY-35,0,2026-05-08 12:00:00
+v_183,prod_striped_pull,Grey White,,36,STRIPE-GREY-36,0,2026-05-08 12:00:00
+v_184,prod_striped_pull,Grey White,,37,STRIPE-GREY-37,0,2026-05-08 12:00:00
+v_185,prod_striped_pull,Grey White,,38,STRIPE-GREY-38,0,2026-05-08 12:00:00
+v_186,prod_striped_pull,Grey White,,39,STRIPE-GREY-39,0,2026-05-08 12:00:00
+v_187,prod_striped_pull,Grey White,,40,STRIPE-GREY-40,0,2026-05-08 12:00:00
+v_188,prod_striped_pull,Green White,,24,STRIPE-GREE-24,0,2026-05-08 12:00:00
+v_189,prod_striped_pull,Green White,,25,STRIPE-GREE-25,0,2026-05-08 12:00:00
+v_190,prod_striped_pull,Green White,,26,STRIPE-GREE-26,0,2026-05-08 12:00:00
+v_191,prod_striped_pull,Green White,,27,STRIPE-GREE-27,0,2026-05-08 12:00:00
+v_192,prod_striped_pull,Green White,,28,STRIPE-GREE-28,0,2026-05-08 12:00:00
+v_193,prod_striped_pull,Green White,,29,STRIPE-GREE-29,0,2026-05-08 12:00:00
+v_194,prod_striped_pull,Green White,,30,STRIPE-GREE-30,0,2026-05-08 12:00:00
+v_195,prod_striped_pull,Green White,,31,STRIPE-GREE-31,0,2026-05-08 12:00:00
+v_196,prod_striped_pull,Green White,,32,STRIPE-GREE-32,0,2026-05-08 12:00:00
+v_197,prod_striped_pull,Green White,,33,STRIPE-GREE-33,0,2026-05-08 12:00:00
+v_198,prod_striped_pull,Green White,,34,STRIPE-GREE-34,0,2026-05-08 12:00:00
+v_199,prod_striped_pull,Green White,,35,STRIPE-GREE-35,0,2026-05-08 12:00:00
+v_200,prod_striped_pull,Green White,,36,STRIPE-GREE-36,0,2026-05-08 12:00:00
+v_201,prod_striped_pull,Green White,,37,STRIPE-GREE-37,0,2026-05-08 12:00:00
+v_202,prod_striped_pull,Green White,,38,STRIPE-GREE-38,0,2026-05-08 12:00:00
+v_203,prod_striped_pull,Green White,,39,STRIPE-GREE-39,0,2026-05-08 12:00:00
+v_204,prod_striped_pull,Green White,,40,STRIPE-GREE-40,0,2026-05-08 12:00:00
+v_205,prod_striped_pull,Royal White,,24,STRIPE-ROYA-24,0,2026-05-08 12:00:00
+v_206,prod_striped_pull,Royal White,,25,STRIPE-ROYA-25,0,2026-05-08 12:00:00
+v_207,prod_striped_pull,Royal White,,26,STRIPE-ROYA-26,0,2026-05-08 12:00:00
+v_208,prod_striped_pull,Royal White,,27,STRIPE-ROYA-27,0,2026-05-08 12:00:00
+v_209,prod_striped_pull,Royal White,,28,STRIPE-ROYA-28,0,2026-05-08 12:00:00
+v_210,prod_striped_pull,Royal White,,29,STRIPE-ROYA-29,0,2026-05-08 12:00:00
+v_211,prod_striped_pull,Royal White,,30,STRIPE-ROYA-30,0,2026-05-08 12:00:00
+v_212,prod_striped_pull,Royal White,,31,STRIPE-ROYA-31,0,2026-05-08 12:00:00
+v_213,prod_striped_pull,Royal White,,32,STRIPE-ROYA-32,0,2026-05-08 12:00:00
+v_214,prod_striped_pull,Royal White,,33,STRIPE-ROYA-33,0,2026-05-08 12:00:00
+v_215,prod_striped_pull,Royal White,,34,STRIPE-ROYA-34,0,2026-05-08 12:00:00
+v_216,prod_striped_pull,Royal White,,35,STRIPE-ROYA-35,0,2026-05-08 12:00:00
+v_217,prod_striped_pull,Royal White,,36,STRIPE-ROYA-36,0,2026-05-08 12:00:00
+v_218,prod_striped_pull,Royal White,,37,STRIPE-ROYA-37,0,2026-05-08 12:00:00
+v_219,prod_striped_pull,Royal White,,38,STRIPE-ROYA-38,0,2026-05-08 12:00:00
+v_220,prod_striped_pull,Royal White,,39,STRIPE-ROYA-39,0,2026-05-08 12:00:00
+v_221,prod_striped_pull,Royal White,,40,STRIPE-ROYA-40,0,2026-05-08 12:00:00
+v_222,prod_striped_pull,Red White,,24,STRIPE-REDW-24,0,2026-05-08 12:00:00
+v_223,prod_striped_pull,Red White,,25,STRIPE-REDW-25,0,2026-05-08 12:00:00
+v_224,prod_striped_pull,Red White,,26,STRIPE-REDW-26,0,2026-05-08 12:00:00
+v_225,prod_striped_pull,Red White,,27,STRIPE-REDW-27,0,2026-05-08 12:00:00
+v_226,prod_striped_pull,Red White,,28,STRIPE-REDW-28,0,2026-05-08 12:00:00
+v_227,prod_striped_pull,Red White,,29,STRIPE-REDW-29,0,2026-05-08 12:00:00
+v_228,prod_striped_pull,Red White,,30,STRIPE-REDW-30,0,2026-05-08 12:00:00
+v_229,prod_striped_pull,Red White,,31,STRIPE-REDW-31,0,2026-05-08 12:00:00
+v_230,prod_striped_pull,Red White,,32,STRIPE-REDW-32,0,2026-05-08 12:00:00
+v_231,prod_striped_pull,Red White,,33,STRIPE-REDW-33,0,2026-05-08 12:00:00
+v_232,prod_striped_pull,Red White,,34,STRIPE-REDW-34,0,2026-05-08 12:00:00
+v_233,prod_striped_pull,Red White,,35,STRIPE-REDW-35,0,2026-05-08 12:00:00
+v_234,prod_striped_pull,Red White,,36,STRIPE-REDW-36,0,2026-05-08 12:00:00
+v_235,prod_striped_pull,Red White,,37,STRIPE-REDW-37,0,2026-05-08 12:00:00
+v_236,prod_striped_pull,Red White,,38,STRIPE-REDW-38,0,2026-05-08 12:00:00
+v_237,prod_striped_pull,Red White,,39,STRIPE-REDW-39,0,2026-05-08 12:00:00
+v_238,prod_striped_pull,Red White,,40,STRIPE-REDW-40,0,2026-05-08 12:00:00
+v_239,prod_striped_pull,Beige Brown,,24,STRIPE-BEIG-24,0,2026-05-08 12:00:00
+v_240,prod_striped_pull,Beige Brown,,25,STRIPE-BEIG-25,0,2026-05-08 12:00:00
+v_241,prod_striped_pull,Beige Brown,,26,STRIPE-BEIG-26,0,2026-05-08 12:00:00
+v_242,prod_striped_pull,Beige Brown,,27,STRIPE-BEIG-27,0,2026-05-08 12:00:00
+v_243,prod_striped_pull,Beige Brown,,28,STRIPE-BEIG-28,0,2026-05-08 12:00:00
+v_244,prod_striped_pull,Beige Brown,,29,STRIPE-BEIG-29,0,2026-05-08 12:00:00
+v_245,prod_striped_pull,Beige Brown,,30,STRIPE-BEIG-30,0,2026-05-08 12:00:00
+v_246,prod_striped_pull,Beige Brown,,31,STRIPE-BEIG-31,0,2026-05-08 12:00:00
+v_247,prod_striped_pull,Beige Brown,,32,STRIPE-BEIG-32,0,2026-05-08 12:00:00
+v_248,prod_striped_pull,Beige Brown,,33,STRIPE-BEIG-33,0,2026-05-08 12:00:00
+v_249,prod_striped_pull,Beige Brown,,34,STRIPE-BEIG-34,0,2026-05-08 12:00:00
+v_250,prod_striped_pull,Beige Brown,,35,STRIPE-BEIG-35,0,2026-05-08 12:00:00
+v_251,prod_striped_pull,Beige Brown,,36,STRIPE-BEIG-36,0,2026-05-08 12:00:00
+v_252,prod_striped_pull,Beige Brown,,37,STRIPE-BEIG-37,0,2026-05-08 12:00:00
+v_253,prod_striped_pull,Beige Brown,,38,STRIPE-BEIG-38,0,2026-05-08 12:00:00
+v_254,prod_striped_pull,Beige Brown,,39,STRIPE-BEIG-39,0,2026-05-08 12:00:00
+v_255,prod_striped_pull,Beige Brown,,40,STRIPE-BEIG-40,0,2026-05-08 12:00:00
+v_256,prod_striped_pull,Maroon White,,24,STRIPE-MARO-24,0,2026-05-08 12:00:00
+v_257,prod_striped_pull,Maroon White,,25,STRIPE-MARO-25,0,2026-05-08 12:00:00
+v_258,prod_striped_pull,Maroon White,,26,STRIPE-MARO-26,0,2026-05-08 12:00:00
+v_259,prod_striped_pull,Maroon White,,27,STRIPE-MARO-27,0,2026-05-08 12:00:00
+v_260,prod_striped_pull,Maroon White,,28,STRIPE-MARO-28,0,2026-05-08 12:00:00
+v_261,prod_striped_pull,Maroon White,,29,STRIPE-MARO-29,0,2026-05-08 12:00:00
+v_262,prod_striped_pull,Maroon White,,30,STRIPE-MARO-30,0,2026-05-08 12:00:00
+v_263,prod_striped_pull,Maroon White,,31,STRIPE-MARO-31,0,2026-05-08 12:00:00
+v_264,prod_striped_pull,Maroon White,,32,STRIPE-MARO-32,0,2026-05-08 12:00:00
+v_265,prod_striped_pull,Maroon White,,33,STRIPE-MARO-33,0,2026-05-08 12:00:00
+v_266,prod_striped_pull,Maroon White,,34,STRIPE-MARO-34,0,2026-05-08 12:00:00
+v_267,prod_striped_pull,Maroon White,,35,STRIPE-MARO-35,0,2026-05-08 12:00:00
+v_268,prod_striped_pull,Maroon White,,36,STRIPE-MARO-36,0,2026-05-08 12:00:00
+v_269,prod_striped_pull,Maroon White,,37,STRIPE-MARO-37,0,2026-05-08 12:00:00
+v_270,prod_striped_pull,Maroon White,,38,STRIPE-MARO-38,0,2026-05-08 12:00:00
+v_271,prod_striped_pull,Maroon White,,39,STRIPE-MARO-39,0,2026-05-08 12:00:00
+v_272,prod_striped_pull,Maroon White,,40,STRIPE-MARO-40,0,2026-05-08 12:00:00
+v_273,prod_lca_pull,Maroon,,24,LCA-MAR-24,0,2026-05-08 12:00:00
+v_274,prod_lca_pull,Maroon,,26,LCA-MAR-26,0,2026-05-08 12:00:00
+v_275,prod_lca_pull,Maroon,,28,LCA-MAR-28,0,2026-05-08 12:00:00
+v_276,prod_lca_pull,Maroon,,30,LCA-MAR-30,0,2026-05-08 12:00:00
+v_277,prod_lca_pull,Maroon,,32,LCA-MAR-32,0,2026-05-08 12:00:00
+v_278,prod_lca_pull,Maroon,,34,LCA-MAR-34,0,2026-05-08 12:00:00
+v_279,prod_lca_pull,Grey,,32,LCA-GRY-32,0,2026-05-08 12:00:00
+v_280,prod_lca_pull,Grey,,34,LCA-GRY-34,0,2026-05-08 12:00:00
+v_281,prod_lca_pull,Grey,,36,LCA-GRY-36,0,2026-05-08 12:00:00
+v_282,prod_lgc_pull,Red,,24,LGC-RED-24,0,2026-05-08 12:00:00
+v_283,prod_lgc_pull,Red,,26,LGC-RED-26,0,2026-05-08 12:00:00
+v_284,prod_lgc_pull,Red,,28,LGC-RED-28,0,2026-05-08 12:00:00
+v_285,prod_lgc_pull,Red,,30,LGC-RED-30,0,2026-05-08 12:00:00
+v_286,prod_lgc_pull,Red,,32,LGC-RED-32,0,2026-05-08 12:00:00
+v_287,prod_lgc_pull,Red,,34,LGC-RED-34,0,2026-05-08 12:00:00
+v_288,prod_lgc_pull,Maroon,,32,LGC-MAR-32,0,2026-05-08 12:00:00
+v_289,prod_lgc_pull,Maroon,,34,LGC-MAR-34,0,2026-05-08 12:00:00
+v_290,prod_lgc_pull,Maroon,,36,LGC-MAR-36,0,2026-05-08 12:00:00
+v_291,prod_lgc_pull,Maroon,,38,LGC-MAR-38,0,2026-05-08 12:00:00
+v_292,prod_baraka_pull,Standard,,32,BAR-STD-32,0,2026-05-08 12:00:00
+v_293,prod_baraka_pull,Standard,,34,BAR-STD-34,0,2026-05-08 12:00:00
+v_294,prod_baraka_pull,Standard,,36,BAR-STD-36,0,2026-05-08 12:00:00
+v_295,prod_baraka_pull,Standard,,38,BAR-STD-38,0,2026-05-08 12:00:00
+v_296,prod_baraka_pull,Standard,,40,BAR-STD-40,0,2026-05-08 12:00:00
+v_297,prod_sacred_pull,Standard,,32,SAC-STD-32,0,2026-05-08 12:00:00
+v_298,prod_sacred_pull,Standard,,34,SAC-STD-34,0,2026-05-08 12:00:00
+v_299,prod_sacred_pull,Standard,,36,SAC-STD-36,0,2026-05-08 12:00:00
+v_300,prod_sacred_pull,Standard,,38,SAC-STD-38,0,2026-05-08 12:00:00
+v_301,prod_sacred_pull,Standard,,40,SAC-STD-40,0,2026-05-08 12:00:00
+v_302,prod_township_pull,Standard,,32,TWN-STD-32,0,2026-05-08 12:00:00
+v_303,prod_township_pull,Standard,,34,TWN-STD-34,0,2026-05-08 12:00:00
+v_304,prod_township_pull,Standard,,36,TWN-STD-36,0,2026-05-08 12:00:00
+v_305,prod_township_pull,Standard,,38,TWN-STD-38,0,2026-05-08 12:00:00
+v_306,prod_township_pull,Standard,,40,TWN-STD-40,0,2026-05-08 12:00:00
+v_307,prod_kimasian_pull,Standard,,32,KIM-STD-32,0,2026-05-08 12:00:00
+v_308,prod_kimasian_pull,Standard,,34,KIM-STD-34,0,2026-05-08 12:00:00
+v_309,prod_kimasian_pull,Standard,,36,KIM-STD-36,0,2026-05-08 12:00:00
+v_310,prod_kimasian_pull,Standard,,38,KIM-STD-38,0,2026-05-08 12:00:00
+v_311,prod_kimasian_pull,Standard,,40,KIM-STD-40,0,2026-05-08 12:00:00
+v_312,prod_lelu_pull,Standard,,32,LEL-STD-32,0,2026-05-08 12:00:00
+v_313,prod_lelu_pull,Standard,,34,LEL-STD-34,0,2026-05-08 12:00:00
+v_314,prod_lelu_pull,Standard,,36,LEL-STD-36,0,2026-05-08 12:00:00
+v_315,prod_lelu_pull,Standard,,38,LEL-STD-38,0,2026-05-08 12:00:00
+v_316,prod_lelu_pull,Standard,,40,LEL-STD-40,0,2026-05-08 12:00:00

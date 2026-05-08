@@ -1,240 +1,93 @@
 📊 PROJECT STATUS
-Current Version: v1.0.6
-Current Phase: Phase 3 (Ready to Start)
+Current Version: v1.0.7
+Current Phase: Phase 4 (UI/UX Refinement & IMS)
 Repository: https://github.com/rig5414/mwalimu-pos
 Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
-Last Updated: 2026-05-07
+Last Updated: 2026-05-09
 
-✅ COMPLETED (Phase 1)
-Infrastructure & DevOps
-✅ Full React 18 + Electron 29 scaffold
-✅ SQLite database with schema + seed data (users, categories, products, variants, sales, clients)
-✅ Electron IPC bridge (window.api) for secure React → SQLite communication
-✅ Dev fallback pattern (dummy data for browser dev mode at npm run vite)
-✅ GitHub Pages deployment for download page
-✅ GitHub Actions workflow for automated builds on version tags
-✅ electron-updater integration for automatic app updates
-✅ HashRouter for Electron file:// protocol compatibility
-UI/Layout (All Scaffolded)
-✅ LoginPage with admin/shopkeeper role selection
-✅ ShopkeeperLayout (topbar + nav)
-✅ POSPage (main sales interface - category/product browser + cart)
-✅ CartPanel (right-side cart with qty controls, totals, checkout)
-✅ VariantModal (color/size picker)
-✅ PaymentModal (cash/M-Pesa/card UI)
-✅ ReceiptModal (receipt display + print trigger)
-✅ AdminLayout, DashboardPage, SalesPage, StockPage, UsersPage
-✅ Design system (colors, fonts, Tailwind custom classes)
-Authentication & Authorization
-✅ PIN-based login (SHA-256 hashed)
-✅ Role-based route guards (Require component)
-✅ Zustand auth store with demo fallback
-✅ Default users: admin/9999, shopkeeper/1234
-Database
-✅ SQLite schema (users, categories, products, product_variants, stock_movements, clients, sales, sale_items, sync_log)
-✅ Seed data: 5 categories, 6 products with variants, 3 clients, 5 sample sales
-✅ Transactional sales (atomic multi-step inserts)
-✅ Low stock detection
-Known Workarounds/Fixes
-⚠️ Removed "type": "module" from package.json (was causing CommonJS/ESM conflict)
-⚠️ Removed icon references from electron-builder config (icon files didn't exist)
-⚠️ Fixed React Router: switched BrowserRouter → HashRouter for file:// protocol
-⚠️ GitHub Actions build disabled (native module compilation issues); use manual local build instead
-✅ COMPLETED (Phase 2)
-Toast Notification System
-✅ useToast hook + global ToastContainer
-✅ All app alert() calls replaced with toasts (success/error/warning/info)
+✅ COMPLETED (Phase 1-3)
+Infrastructure & Database
+✅ Full React 18 + Electron 29 scaffold with SQLite (better-sqlite3)
+✅ DB Hardening: All dummy data fallbacks (DUMMY_*) removed from production pages.
+✅ Database Schema evolved: Added 'icon', 'school_id', 'cost_price' to products table.
+✅ Seeding: Comprehensive sample data for School Uniforms (Pullovers, Trousers, etc.) and other categories (Games Attires, Footwear, etc.) using `seed_sample_data.js`.
+✅ Friendly Errors: Friendly toast notifications for duplicate barcodes (UNIQUE constraint).
 
-Barcode Scanner Handler
-✅ POS keydown listener with scan-buffer timing and Enter trigger
-✅ Barcode lookup via IPC (products:getByBarcode) + fallback
-✅ Not-found / out-of-stock handled with toasts
+Hierarchical Inventory & POS UI
+✅ 5-Level Drill-Down: Category → Subcategory → Type (Plain/Badged) → Product → Variant.
+✅ Folder-based Navigation: Implemented consistent path-based breadcrumb navigation in both Admin/Stock and Shopkeeper/Stock pages.
+✅ POS Refactor: POS page now uses the same hierarchical folder system, replacing the flat grid.
+✅ Immediate POS Interaction: Clicking a variant card in POS immediately adds 1 unit to the cart, bypassing the quantity modal for faster checkout.
+✅ Barcode Scanner: Integrated keydown listener for physical scanners; resolve matches directly to variants in POS.
 
-Product Management UI (admin)
-✅ /admin/products page wired
-✅ Add, edit, delete products
-✅ Toggle active/inactive
-✅ Add variants during create/update
-✅ Form validation + barcode field
+Admin & Product Management
+✅ /admin/products: Full CRUD with icon selection, cost price tracking, and school-badge linking.
+✅ /admin/categories: Full CRUD with icon support.
+✅ /admin/stock: Real-time stock balance tracking with hierarchical grouping.
+✅ /admin/users: PIN-based user management (admin/shopkeeper roles).
+✅ /admin/dashboard: Real stats (Revenue, Transactions, Items Sold, Low Stock) pulled from DB.
 
-Category Management UI (admin)
-✅ /admin/categories page wired
-✅ Add, edit, delete, reorder categories
-✅ Cascade-safe delete handling (reassign products to "Uncategorized")
+UI/UX & Polish
+✅ Toast Notifications: Replaced all alerts with custom toasts (success/error/warning).
+✅ Saving States: Added loading/disabled states to buttons during DB writes to prevent duplicate entries.
+✅ Theme: Modern navy/amber palette with Space Grotesk/DM Sans typography.
 
-Business Taxonomy Alignment
-✅ Categories standardized: School Uniforms, Games Attires, Footwear, Beddings, Inner Wear, School Bags, Schools
-✅ Subcategory mapping enforced in product form
-✅ School-specific flow supported (Londiani Christian Academy, Londiani Junior Secondary)
-✅ Quick school item selector to speed school-contracted product entry
+🔜 REMAINING (Phase 4 onwards)
+Phase 4 (UI/UX Refinement)
+- Loading States: Add skeleton screens or spinners for slower DB queries.
+- Tablet Optimization: Fine-tune touch targets for folder cards.
+- Search Polish: Enable search across all levels of the hierarchy with direct variant results.
+- Sales Reports: Basic filtering by date/category in the Admin Sales page.
 
-Expanded Dummy Data
-✅ Realistic Kenyan product names/prices expanded
-✅ School-specific catalogue examples included
+Phase 5 (Inventory Management System - IMS)
+- Stock Audit Trail: UI to view history of stock movements (Additions/Sales).
+- Low Stock Settings: Per-product thresholds for low stock warnings.
+- Batch Stock Entry: Capability to add multiple variants at once in the Stock page.
 
-Data Consistency & Auto-Updater (v1.0.6 Polish)
-✅ Aligned SQLite `migrate.js` seed data to perfectly match React `DUMMY_PRODUCTS` and `DUMMY_CATEGORIES` (stable IDs, subcategories included)
-✅ Handled `variant_id` NOT NULL constraint in historical `sale_items`
-✅ Configured `electron-updater` with GitHub releases (`package.json` publish config)
-✅ Tested auto-updater successfully (requires `latest.yml` to be uploaded to GitHub release)
+Phase 6+ (Future)
+- Thermal Printer: Raw ESC/POS printing for receipts.
+- Cloud Sync: Supabase/PostgreSQL sync for multi-branch support.
+- M-Pesa Integration: STK Push for automated payments.
 
-🔜 REMAINING (Phase 3 onwards)
-Phase 3 (Current Priority)
-SQLite Wiring Completion
-- Remove remaining stub/dummy fallback logic from admin/shopkeeper pages where production DB should be source of truth
-- Ensure all CRUD flows run against IPC handlers only in Electron mode
-- Add missing IPC handlers only if a page still relies on local mock state
-
-Data Consistency & Integrity
-- Ensure product icon persistence (DB currently has no icon column; decide whether to add migration or derive icon in UI)
-- Validate barcode uniqueness UX in product create/update (friendly toast when duplicate)
-- Ensure stock totals displayed in admin product table match variant-level stock source
-
-Phase 3 Validation Checklist
-- Test full admin CRUD: categories, products, stock, users
-- Test POS checkout: variant selection, payment, receipt, stock deduction
-- Test barcode scan flow with physical scanner in Electron app
-- Verify role guards + session flow (admin/shopkeeper)
-
-Release Readiness
-- Regression test in `npm run dev` (Electron mode)
-- Build installer with `npm run build:win`
-- Tag next release (v1.0.4 recommended)
-Phase 4
-UI/UX refinement
-Tablet touch optimization
-Loading states, error states
-Input validation, error messages
-Phase 5+
-IMS (inventory management): audit trail UI, stock history, low stock settings
-Live stock deduction on POS
-Cloud sync (Supabase, Phase 7)
-Reports & analytics (Phase 8)
-Thermal printer integration (Phase 9)
-Payment gateways (M-Pesa STK, card terminal, Phase 10)
 🏗️ ARCHITECTURE
-Tech Stack (Locked In)
-Frontend: React 18 + Vite + React Router v6 + Zustand
-Desktop: Electron 29
-Styling: Tailwind CSS v3 + custom globals.css
-Database: SQLite (better-sqlite3)
-IPC: Electron contextBridge
-Build: electron-builder + GitHub Actions
-Updates: electron-updater
+Tech Stack
+- Frontend: React 18 + Vite + HashRouter + Zustand
+- Desktop: Electron 29
+- Styling: Tailwind CSS v3
+- Database: SQLite (better-sqlite3)
+- IPC: window.api (contextBridge)
+
 Project Structure
 mwalimu-pos/
 ├── electron/
-│   ├── main.js              # Electron main process + app lifecycle
-│   ├── preload.js           # IPC bridge (window.api)
-│   ├── db/migrate.js        # SQLite schema + seed
-│   └── ipc/handlers.js      # All DB operations
+│   ├── db/migrate.js        # SQLite schema
+│   └── ipc/handlers.js      # All DB operations (No dummy fallbacks allowed in src)
 ├── src/
-│   ├── main.jsx             # React entry (HashRouter)
-│   ├── App.jsx              # Route definitions + Require guard
-│   ├── store/               # Zustand: authStore, cartStore
-│   ├── pages/               # All page components
-│   ├── components/pos/      # CartPanel, VariantModal, PaymentModal, ReceiptModal
-│   └── styles/globals.css   # Custom Tailwind classes
-├── public/                  # download.html, assets
-├── package.json             # Scripts: dev, build:win, build:linux
-├── vite.config.js
-├── tailwind.config.js
-└── .github/workflows/release.yml  # GitHub Actions
+│   ├── pages/               # All React pages (Strictly DB-driven via window.api)
+│   ├── store/               # Zustand stores (auth, cart)
+│   └── components/pos/      # POS specific components (Cart, Payment, Receipts)
+├── seed_sample_data.js      # Realistic data seeder (Run via npx electron seed_sample_data.js)
+└── public/AI prompt Updates.txt # This status tracker
 
-IPC Pattern (React → SQLite)
-React Component:
-  const res = await window.api.products.getAll({ filters })
-  if (!res.ok) throw new Error(res.error)
-  const data = res.data
+🚀 DEPLOYMENT
+- Local Build: `npm run build:win`
+- Manual Release: Upload `.exe`, `.blockmap`, and `latest.yml` to GitHub Releases.
+- Auto-Updater: Configured via `electron-updater`, pulls from GitHub.
 
-Main Process (handlers.js):
-  ipcMain.handle('products:getAll', (event, filters) => {
-    return db.prepare(...).all()  // Raw data, auto-wrapped as { ok, data }
-  })
+🐛 KNOWN ISSUES
+- GitHub Actions: Native module (better-sqlite3) compilation fails in CI; manual builds required.
+- Icon Selection: Admin UI for icons is currently a text input; could be improved to an emoji picker.
 
-Dev Fallback Pattern
-All components that call window.api must check if (window.api) and provide dummy data fallback for browser dev mode.
+📝 CODING STANDARDS
+1. No Dummy Data: All production pages MUST use `window.api`. Fallbacks are for browser dev mode ONLY.
+2. Async/Await: Use modern async patterns for all IPC calls.
+3. UUIDs: Generate `uuidv4()` in the backend for all new records.
+4. Transitions: Wrap multi-step DB writes in `db.transaction(() => { ... })()`.
 
-🚀 DEPLOYMENT & RELEASE PROCESS
-Current Workflow
-Local Build:
+📋 NEXT STEPS FOR AGENT
+1) Verify full end-to-end POS flow: Scan item -> Add to cart -> Checkout -> Stock Deduction check.
+2) Implement the Stock History / Audit Trail UI in the Admin section.
+3) Refine the Dashboard with more detailed charts (e.g., Sales by Category).
+4) Ensure the "Low Stock" dashboard card links to a filtered view in the Stock page.
 
-
-npm run build:win  # Creates dist-electron/Mwalimu POS Setup*.exe
-GitHub Release (Manual):
-
-Go to repo → Releases → "Create new release"
-Tag: e.g. v1.0.6 (increment on every release)
-Upload THREE files from `dist-electron`: The `.exe`, `.blockmap`, AND `latest.yml` (CRITICAL for auto-updater!)
-Publish
-Download Page Updates Automatically:
-
-GitHub Pages serves public/download.html
-Page fetches latest release from GitHub API
-Users download and install
-Automatic Updates:
-
-App checks for updates on startup (electron-updater)
-Shows notification if new version available
-User clicks "Update" to download & install
-GitHub Actions (Currently Disabled)
-.github/workflows/release.yml tries to auto-build on tags
-Issue: better-sqlite3 native module compilation fails in Actions environment
-Workaround: Build locally, upload manually (as above)
-🐛 KNOWN ISSUES & WORKAROUNDS
-Issue	Status	Workaround
-GitHub Actions build fails (better-sqlite3 C++ compilation)	Open	Build locally: npm run build:win
-Icons missing from executable	Closed	Removed icon refs from electron-builder config
-App showed blank white page	Closed	Switched BrowserRouter → HashRouter
-Vercel deployment doesn't work	Closed	Use GitHub Pages instead (static site)
-Module type warnings	Active	Not critical; can add "type": "module" and refactor to ESM if needed
-📝 CODING STANDARDS (MANDATORY)
-Functional components only — no class components
-Async/await — no .then() chains
-Error handling: if (!res.ok) throw new Error(res.error) on every window.api call
-IPC calls must have fallback: if (window.api) { ... } else { /* dummy data */ }
-Dummy data at top of file — realistic Kenyan prices, real product names
-No hardcoded colors — use Tailwind classes only
-Transactions for multi-step writes: db.transaction(() => { ... })()
-UUIDs for all IDs: const { v4: uuidv4 } = require('uuid')
-Timestamps UTC: datetime('now') in SQLite, format on display in JS
-🎨 DESIGN SYSTEM
-Colors
-Primary: #1a3a5c (navy)
-Accent: #e8a020 (amber)
-Surfaces: white, #f0f2f5, #f4f6f9
-Fonts
-Headings: Space Grotesk
-Body: DM Sans
-Code/Receipt: JetBrains Mono
-Custom Classes
-.btn-primary, .btn-secondary, .btn-danger
-.card, .input, .label, .badge, .badge-success, .badge-danger, .badge-warning, .badge-info
-📋 NEXT STEPS (IMMEDIATE)
-1) Start Phase 3 SQLite hardening (remove remaining dummy/stub paths where not needed)
-2) Run full end-to-end functional test in Electron mode
-3) Build Windows installer and smoke-test on target tablet
-4) Publish next feature tag/release (v1.0.7)
-5) Gather shopkeeper feedback on school-specific selling flow
-📞 SUPPORT CONTEXT
-Owner/Client: Mwalimu Uniforms (Mombasa, Kenya)
-User Base: Shopkeepers (POS) + Owner/Admin (full system)
-Hardware: Windows 10/11 tablet, optional thermal printer, optional USB barcode scanner
-Offline-first: All business logic runs locally; Supabase sync comes Phase 7+
-Key Constraint: No server backend (yet) — app is fully self-contained
-🔗 LINKS
-GitHub Repo: https://github.com/rig5414/mwalimu-pos
-Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
-Latest Release: https://github.com/rig5414/mwalimu-pos/releases
-Dev Commands:
-npm run dev — Electron + Vite (real app mode)
-npm run vite — Browser only (fast UI dev)
-npm run build:win — Build Windows installer
-❓ QUESTIONS FOR NEXT AI AGENT
-Before starting Phase 3, clarify:
-
-Which pages still rely on fallback dummy state in Electron mode and should be fully DB-backed now?
-Do we add an `icon` column migration for products, or keep icon as UI-only mapping?
-Should GitHub Actions remain disabled for now, or do we attempt native-module build fixes in CI?
-Any usability tweaks requested after real shopkeeper testing of school-specific categories?
-You're ready to take over Phase 3. Good luck! 🚀
+You are now in Phase 4. All dummy data "safety nets" are gone—ensure database integrity at all times. 🚀

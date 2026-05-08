@@ -131,65 +131,62 @@ module.exports.register = function (ipcMain, db) {
     return product
   })
 
-  handle('products:create', ({ name, category_id, subcategory, price, barcode, description, variants }) => {
+  handle('products:create', ({ name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description, variants }) => {
     const id = uuidv4()
-    db.prepare(`
-      INSERT INTO products (id, name, category_id, subcategory, price, barcode, description)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, name, category_id, subcategory || null, price, barcode || null, description || null)
+    try {
+      db.prepare(`
+        INSERT INTO products (id, name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, name, category_id, subcategory || null, school_id || null, icon || null, cost_price || 0, price, barcode || null, description || null)
 
-    // Insert variants
-    if (variants && variants.length > 0) {
-      const insertVariant = db.prepare(`
-        INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `)
-      for (const v of variants) {
-        insertVariant.run(uuidv4(), id, v.color || null, v.color_hex || null, v.size || null, v.sku || null, v.stock_qty || 0)
+      // Insert variants
+      if (variants && variants.length > 0) {
+        const insertVariant = db.prepare(`
+          INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `)
+        for (const v of variants) {
+          insertVariant.run(uuidv4(), id, v.color || null, v.color_hex || null, v.size || null, v.sku || null, v.stock_qty || 0)
+        }
       }
+      return { id }
+    } catch (err) {
+      if (err.message.includes('UNIQUE constraint failed: products.barcode')) {
+        throw new Error(`Barcode "${barcode}" is already assigned to another product.`)
+      }
+      throw err
     }
-    return { id }
   })
 
-  handle('products:update', ({ id, name, category_id, subcategory, price, barcode, description, is_active, variants }) => {
+  handle('products:update', ({ id, name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description, is_active, variants }) => {
     const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(id)
     if (!existing) throw new Error('Product not found')
 
-    db.prepare(`
-      UPDATE products
-      SET name = ?, category_id = ?, subcategory = ?, price = ?, barcode = ?, description = ?,
-          is_active = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(
-      name,
-      category_id || null,
-      subcategory || null,
-      price,
-      barcode || null,
-      description || null,
-      is_active === 0 || is_active === false ? 0 : 1,
-      id
-    )
+    try {
+      db.prepare(`
+        UPDATE products
+        SET name = ?, category_id = ?, subcategory = ?, school_id = ?, icon = ?, cost_price = ?, price = ?, barcode = ?, description = ?, is_active = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(name, category_id || null, subcategory || null, school_id || null, icon || null, cost_price || 0, price, barcode || null, description || null, is_active ?? 1, id)
 
-    if (Array.isArray(variants) && variants.length > 0) {
-      const insertVariant = db.prepare(`
-        INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `)
-      for (const v of variants) {
-        insertVariant.run(
-          uuidv4(),
-          id,
-          v.color || null,
-          v.color_hex || null,
-          v.size || null,
-          v.sku || null,
-          Number(v.stock_qty) || 0
-        )
+      // Update variants (destructive approach)
+      if (Array.isArray(variants)) {
+        db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(id)
+        const insertVariant = db.prepare(`
+          INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `)
+        for (const v of variants) {
+          insertVariant.run(uuidv4(), id, v.color || null, v.color_hex || null, v.size || null, v.sku || null, Number(v.stock_qty) || 0)
+        }
       }
+      return { ok: true }
+    } catch (err) {
+      if (err.message.includes('UNIQUE constraint failed: products.barcode')) {
+        throw new Error(`Barcode "${barcode}" is already assigned to another product.`)
+      }
+      throw err
     }
-
-    return { ok: true }
   })
 
   handle('products:delete', (id) => {
@@ -204,7 +201,7 @@ module.exports.register = function (ipcMain, db) {
   // ── Stock ──────────────────────────────────────────────────────────────────
   handle('stock:getAll', () => {
     return db.prepare(`
-      SELECT pv.*, p.name as product_name, p.category_id, c.name as category_name
+      SELECT pv.*, p.name as product_name, p.category_id, p.subcategory, p.school_id, c.name as category_name
       FROM product_variants pv
       JOIN products p ON pv.product_id = p.id
       JOIN categories c ON p.category_id = c.id

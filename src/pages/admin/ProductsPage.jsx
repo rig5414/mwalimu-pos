@@ -1,23 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../../hooks/useToast'
 
-const DUMMY_CATEGORIES = [
-  { id: 'school-uniforms', name: 'School Uniforms' },
-  { id: 'games-attires', name: 'Games Attires' },
-  { id: 'footwear', name: 'Footwear' },
-  { id: 'inner-wear', name: 'Inner Wear' },
-  { id: 'beddings', name: 'Beddings' },
-  { id: 'school-bags', name: 'School Bags' },
-  { id: 'schools', name: 'Schools' },
-]
-
-const DUMMY_PRODUCTS = [
-  { id: 'tmp-1', name: 'Navy Pullover',   category_id: 'school-uniforms', subcategory: 'Pullovers',   price: 1200, total_stock: 28, is_active: 1, icon: '🧥' },
-  { id: 'tmp-2', name: 'School Shirt',    category_id: 'school-uniforms', subcategory: 'Shirts',      price: 650,  total_stock: 35, is_active: 1, icon: '👕' },
-  { id: 'tmp-3', name: 'Navy Trouser',    category_id: 'school-uniforms', subcategory: 'Trousers',    price: 1150, total_stock: 20, is_active: 1, icon: '👖' },
-  { id: 'tmp-4', name: 'Toughees (Kids)', category_id: 'footwear',        subcategory: 'Toughees',    price: 2800, total_stock: 12, is_active: 1, icon: '👞' },
-  { id: 'tmp-5', name: 'Canvas Backpack', category_id: 'school-bags',     subcategory: 'Backpacks',   price: 1800, total_stock: 12, is_active: 1, icon: '🎒' },
-]
+const BLANK_FORM = {
+  name: '',
+  category_id: '',
+  subcategory: '',
+  school_id: '',
+  cost_price: '',
+  price: '',
+  barcode: '',
+  icon: '📦',
+}
 
 const CATEGORY_SUBCATEGORIES = {
   'school-uniforms': ['Pullovers', 'Shirts', 'Trousers', 'Dresses', 'Half Sweaters', 'Socks', 'Skirts', 'Marvins', 'Gloves'],
@@ -31,18 +24,11 @@ const CATEGORY_SUBCATEGORIES = {
 
 const SCHOOL_ITEMS = ['Pullover', 'Half Sweater', 'Shirt', 'Dress', 'Girls Trouser', 'Long Trouser', 'Tracksuit', 'Socks', 'Tie', 'Marvin', 'Trouser', 'Tshirt', 'Girls Socks', 'Boys Socks']
 
-const BLANK_FORM = {
-  name: '',
-  category_id: DUMMY_CATEGORIES[0].id,
-  subcategory: '',
-  price: '',
-  barcode: '',
-  icon: '📦',
-}
+
 
 export default function ProductsPage() {
   const [products, setProducts]         = useState([])
-  const [categories, setCategories]     = useState(DUMMY_CATEGORIES)
+  const [categories, setCategories]     = useState([])
   const [showForm, setShowForm]         = useState(false)
   const [editingId, setEditingId]       = useState(null)
   const [saving, setSaving]             = useState(false)
@@ -71,9 +57,6 @@ export default function ProductsPage() {
         const res = await window.api.products.getAll({ include_inactive: true })
         if (!res.ok) throw new Error(res.error)
         setProducts(res.data || [])
-      } else {
-        // Dev mode fallback
-        setProducts(DUMMY_PRODUCTS)
       }
     } catch (err) {
       toast.error('Failed to load products: ' + (err.message || 'Unknown error'))
@@ -90,9 +73,8 @@ export default function ProductsPage() {
           setFormData(prev => ({ ...prev, category_id: prev.category_id || res.data[0].id }))
         }
       }
-      // else: keep DUMMY_CATEGORIES as initial state
     } catch (_err) {
-      toast.warning('Using local category list')
+      toast.error('Failed to load categories')
     }
   }
 
@@ -112,6 +94,9 @@ export default function ProductsPage() {
             name: formData.name.trim(),
             category_id: formData.category_id,
             subcategory: formData.subcategory.trim(),
+            school_id: formData.school_id || null,
+            icon: formData.icon,
+            cost_price: Number(formData.cost_price) || 0,
             price: Number(formData.price),
             barcode: formData.barcode.trim() || null,
             is_active: 1,
@@ -124,6 +109,9 @@ export default function ProductsPage() {
             name: formData.name.trim(),
             category_id: formData.category_id,
             subcategory: formData.subcategory.trim(),
+            school_id: formData.school_id || null,
+            icon: formData.icon,
+            cost_price: Number(formData.cost_price) || 0,
             price: Number(formData.price),
             barcode: formData.barcode.trim() || null,
             variants,
@@ -222,8 +210,10 @@ export default function ProductsPage() {
   async function editProduct(product) {
     setFormData({
       name: product.name || '',
-      category_id: product.category_id || (categories[0]?.id || DUMMY_CATEGORIES[0].id),
+      category_id: product.category_id || categories[0]?.id || '',
       subcategory: product.subcategory || '',
+      school_id: product.school_id || '',
+      cost_price: product.cost_price ? String(product.cost_price) : '',
       price: String(product.price || ''),
       barcode: product.barcode || '',
       icon: product.icon || '📦',
@@ -252,7 +242,7 @@ export default function ProductsPage() {
   function resetForm() {
     setFormData({
       ...BLANK_FORM,
-      category_id: categories[0]?.id || DUMMY_CATEGORIES[0].id,
+      category_id: categories[0]?.id || '',
     })
     setVariants([])
     setNewVariant({ color: '', color_hex: '#1a3a5c', size: '', stock_qty: '' })
@@ -292,7 +282,19 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="label">Price (Ksh.) *</label>
+                <label className="label">Cost Price (Ksh.)</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={formData.cost_price}
+                  onChange={e => setFormData({ ...formData, cost_price: e.target.value })}
+                  placeholder="e.g. 800"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="label">Selling Price (Ksh.) *</label>
                 <input
                   type="number"
                   className="input"
@@ -360,6 +362,24 @@ export default function ProductsPage() {
               </div>
 
               <div>
+                <label className="label">School Badge (Optional)</label>
+                <select
+                  className="input"
+                  value={formData.school_id}
+                  onChange={e => setFormData({ ...formData, school_id: e.target.value })}
+                >
+                  <option value="">No Badge (Plain)</option>
+                  {categories.find(c => c.id === 'schools')?.id ? (
+                    <option value="lca-placeholder">Londiani Christian Academy</option> // Temporary until schools category is properly nested
+                  ) : null}
+                  <option value="school_lca">Londiani Christian Academy</option>
+                  <option value="school_lgc">Londiani Girls</option>
+                  <option value="school_baraka">Baraka Senior</option>
+                  <option value="school_sacred">Sacred Hills</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="label">Barcode</label>
                 <input
                   type="text"
@@ -380,7 +400,6 @@ export default function ProductsPage() {
                   maxLength="2"
                   placeholder="📦"
                 />
-                <p className="text-xs text-gray-400 mt-1">UI display only — icon persistence is Phase 3.</p>
               </div>
             </div>
 

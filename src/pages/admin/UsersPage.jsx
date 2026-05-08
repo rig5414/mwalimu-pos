@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../../hooks/useToast'
 
-const DUMMY_USERS = [
-  { id:'u1', name:'Jane Muthoni', username:'shopkeeper', role:'shopkeeper', is_active:1, created_at:'2026-01-01' },
-  { id:'u2', name:'Admin User',   username:'admin',      role:'admin',      is_active:1, created_at:'2026-01-01' },
-]
-
 const BLANK_CREATE = { name:'', username:'', pin:'', confirmPin:'', role:'shopkeeper' }
 const BLANK_EDIT   = { name:'', pin:'', confirmPin:'' }
 
 export default function UsersPage() {
-  const [users, setUsers]         = useState(DUMMY_USERS)
+  const [users, setUsers]         = useState([])
   const [showAdd, setShowAdd]     = useState(false)
   const [editTarget, setEditTarget] = useState(null) // user object being edited
   const [createForm, setCreateForm] = useState(BLANK_CREATE)

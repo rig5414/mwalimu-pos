@@ -2,16 +2,6 @@ import { useState, useEffect } from 'react'
 import { useToast } from '../../hooks/useToast'
 
 // Updated categories matching client's business structure
-const INITIAL_CATEGORIES = [
-  { id: 'school-uniforms', name: 'School Uniforms', icon: '👔' },
-  { id: 'games-attires', name: 'Games Attires', icon: '🏃' },
-  { id: 'footwear', name: 'Footwear', icon: '👟' },
-  { id: 'inner-wear', name: 'Inner Wear', icon: '🧦' },
-  { id: 'beddings', name: 'Beddings', icon: '🛏️' },
-  { id: 'school-bags', name: 'School Bags', icon: '🎒' },
-  { id: 'schools', name: 'Schools', icon: '🏫' },
-]
-
 const ICONS = ['👔', '🎒', '🩳', '👟', '🧢', '👕', '👖', '👗', '🧥', '🎀', '🏅', '🧦', '🍱', '🥋', '🧳', '🏃', '🛏️', '🏫']
 
 export default function CategoriesPage() {
@@ -36,9 +26,6 @@ export default function CategoriesPage() {
         const res = await window.api.categories.getAll()
         if (!res.ok) throw new Error(res.error)
         setCategories(res.data)
-      } else {
-        // Dev mode: use initial categories
-        setCategories(INITIAL_CATEGORIES)
       }
     } catch (err) {
       toast.error('Failed to load categories: ' + (err.message || 'Unknown error'))

@@ -33,6 +33,9 @@ module.exports = function migrate(db) {
       name          TEXT NOT NULL,
       category_id   TEXT REFERENCES categories(id),
       subcategory   TEXT,
+      school_id     TEXT REFERENCES categories(id), -- Points to the 'Schools' category if badged
+      icon          TEXT,
+      cost_price    REAL NOT NULL DEFAULT 0,
       price         REAL NOT NULL DEFAULT 0,
       barcode       TEXT UNIQUE,
       description   TEXT,
@@ -124,6 +127,20 @@ module.exports = function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_stock_variant    ON stock_movements(variant_id);
   `)
 
+  // ── Database Migrations (Safe Upgrades for Existing DBs) ───────────────
+  const { user_version } = db.prepare('PRAGMA user_version').get()
+  
+  if (user_version < 1) {
+    // Add new columns to products table if they don't exist (from Phase 2 to Phase 3)
+    try { db.exec('ALTER TABLE products ADD COLUMN school_id TEXT REFERENCES categories(id)') } catch (e) { /* ignores if exists */ }
+    try { db.exec('ALTER TABLE products ADD COLUMN icon TEXT') } catch (e) { /* ignores if exists */ }
+    try { db.exec('ALTER TABLE products ADD COLUMN cost_price REAL NOT NULL DEFAULT 0') } catch (e) { /* ignores if exists */ }
+    
+    // Set version to 1 to mark these migrations as applied
+    db.exec('PRAGMA user_version = 1')
+    console.log('✅ Database upgraded to v1')
+  }
+
   // ── Seed default users & demo data on first run ──────────────────────────
   const { v4: uuidv4 } = require('uuid')
   const crypto = require('crypto')
@@ -166,33 +183,33 @@ module.exports = function migrate(db) {
 
     // Seed products & variants
     const products = [
-      { id: 'tmp-1', name: 'Navy Pullover', category_id: 'school-uniforms', subcategory: 'Pullovers', price: 1200, variants: [
+      { id: 'tmp-1', name: 'Navy Pullover', category_id: 'school-uniforms', subcategory: 'Pullovers', school_id: null, icon: '🧥', cost_price: 800, price: 1200, variants: [
         { color: 'Navy', color_hex: '#1a3a5c', size: 'S', stock: 10 },
         { color: 'Navy', color_hex: '#1a3a5c', size: 'M', stock: 10 },
         { color: 'Navy', color_hex: '#1a3a5c', size: 'L', stock: 8 },
       ]},
-      { id: 'tmp-2', name: 'School Shirt', category_id: 'school-uniforms', subcategory: 'Shirts', price: 650, variants: [
+      { id: 'tmp-2', name: 'School Shirt', category_id: 'school-uniforms', subcategory: 'Shirts', school_id: null, icon: '👕', cost_price: 400, price: 650, variants: [
         { color: 'White', color_hex: '#ffffff', size: 'S', stock: 15 },
         { color: 'White', color_hex: '#ffffff', size: 'M', stock: 20 },
       ]},
-      { id: 'tmp-3', name: 'Navy Trouser', category_id: 'school-uniforms', subcategory: 'Trousers', price: 1150, variants: [
+      { id: 'tmp-3', name: 'Navy Trouser', category_id: 'school-uniforms', subcategory: 'Trousers', school_id: null, icon: '👖', cost_price: 700, price: 1150, variants: [
         { color: 'Navy', color_hex: '#1a3a5c', size: '28', stock: 10 },
         { color: 'Navy', color_hex: '#1a3a5c', size: '30', stock: 10 },
       ]},
-      { id: 'tmp-4', name: 'Toughees (Kids)', category_id: 'footwear', subcategory: 'Toughees', price: 2800, variants: [
+      { id: 'tmp-4', name: 'Toughees (Kids)', category_id: 'footwear', subcategory: 'Toughees', school_id: null, icon: '👞', cost_price: 1800, price: 2800, variants: [
         { color: 'Black', color_hex: '#000000', size: '36', stock: 6 },
         { color: 'Black', color_hex: '#000000', size: '38', stock: 6 },
       ]},
-      { id: 'tmp-5', name: 'Canvas Backpack', category_id: 'school-bags', subcategory: 'Backpacks', price: 1800, variants: [
+      { id: 'tmp-5', name: 'Canvas Backpack', category_id: 'school-bags', subcategory: 'Backpacks', school_id: null, icon: '🎒', cost_price: 1200, price: 1800, variants: [
         { color: 'Black', color_hex: '#000000', size: '18"', stock: 12 },
       ]},
     ]
 
     products.forEach(prod => {
       db.prepare(`
-        INSERT INTO products (id, name, category_id, subcategory, price)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(prod.id, prod.name, prod.category_id, prod.subcategory, prod.price)
+        INSERT INTO products (id, name, category_id, subcategory, school_id, icon, cost_price, price)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(prod.id, prod.name, prod.category_id, prod.subcategory, prod.school_id, prod.icon, prod.cost_price, prod.price)
 
       prod.variants.forEach(v => {
         const variantId = uuidv4()

@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const DUMMY_CLIENTS = [
-  { id:'c1', name:'Mary Wanjiku',   phone:'0722 345 678', school:'Mombasa Primary', created_at:'2026-01-10' },
-  { id:'c2', name:'James Ochieng', phone:'0733 456 789', school:'Coast Academy',   created_at:'2026-02-05' },
-  { id:'c3', name:'Fatuma Hassan', phone:'0711 567 890', school:'Tudor Boys',       created_at:'2026-03-01' },
-  { id:'c4', name:'David Mutua',   phone:'0744 678 901', school:'Mbaraki Primary', created_at:'2026-03-22' },
-]
+
 
 export default function ClientsPageSK() {
   const [clients, setClients]   = useState([])
@@ -19,8 +14,6 @@ export default function ClientsPageSK() {
       if (window.api) {
         const res = await window.api.clients.getAll()
         if (res.ok) setClients(res.data)
-      } else {
-        setClients(DUMMY_CLIENTS)
       }
     }
     load()

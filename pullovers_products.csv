@@ -1,0 +1,10 @@
+id,name,category_id,subcategory,school_id,icon,cost_price,price,barcode,description,is_active,created_at,updated_at
+prod_plain_pull,Plain Pullover,school-uniforms,Pullovers,,🧥,800,1200,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_striped_pull,Striped Pullover,school-uniforms,Pullovers,,🧥,850,1300,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_lca_pull,LCA Badged Pullover,school-uniforms,Pullovers,school_lca,🧥,900,1500,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_lgc_pull,LGC Badged Pullover,school-uniforms,Pullovers,school_lgc,🧥,900,1500,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_baraka_pull,Baraka Senior Pullover,school-uniforms,Pullovers,school_baraka,🧥,900,1500,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_sacred_pull,Sacred Hills Pullover,school-uniforms,Pullovers,school_sacred,🧥,900,1500,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_township_pull,Township Senior Pullover,school-uniforms,Pullovers,school_township,🧥,900,1500,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_kimasian_pull,Kimasian Senior Pullover,school-uniforms,Pullovers,school_kimasian,🧥,900,1500,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00
+prod_lelu_pull,Lelu Pullover,school-uniforms,Pullovers,school_lelu,🧥,900,1500,,,1,2026-05-08 12:00:00,2026-05-08 12:00:00

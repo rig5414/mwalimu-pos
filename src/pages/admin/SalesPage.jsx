@@ -1,16 +1,10 @@
 // Admin Sales Page
 import { useState, useEffect } from 'react'
 
-const DUMMY = [
-  { receipt_no:'MU-000038', client_name:'Mary Wanjiku',  total:3250, payment_method:'mpesa', created_at:'2026-04-14T14:32:00', status:'completed' },
-  { receipt_no:'MU-000037', client_name:'Walk-in',       total:1700, payment_method:'cash',  created_at:'2026-04-14T13:58:00', status:'completed' },
-  { receipt_no:'MU-000036', client_name:'James Ochieng', total:5400, payment_method:'card',  created_at:'2026-04-14T12:45:00', status:'completed' },
-  { receipt_no:'MU-000035', client_name:'Walk-in',       total:850,  payment_method:'cash',  created_at:'2026-04-14T11:20:00', status:'completed' },
-  { receipt_no:'MU-000034', client_name:'Fatuma Hassan', total:2850, payment_method:'mpesa', created_at:'2026-04-14T10:05:00', status:'completed' },
-]
+
 
 export default function SalesPage() {
-  const [sales, setSales] = useState(DUMMY)
+  const [sales, setSales] = useState([])
 
   useEffect(() => {
     if (!window.api) return

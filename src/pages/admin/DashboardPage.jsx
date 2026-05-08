@@ -1,21 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const DUMMY_SUMMARY = {
-  transactions: 38, revenue: 24800, items_sold: 142, low_stock: 4
-}
-const DUMMY_SALES = [
-  { receipt_no:'MU-000038', client_name:'Mary Wanjiku', item_count:4, total:3250, payment_method:'mpesa', created_at:'2026-04-14T14:32:00', status:'completed', served_by_name:'Jane' },
-  { receipt_no:'MU-000037', client_name:'Walk-in',      item_count:2, total:1700, payment_method:'cash',  created_at:'2026-04-14T13:58:00', status:'completed', served_by_name:'Jane' },
-  { receipt_no:'MU-000036', client_name:'James Ochieng',item_count:6, total:5400, payment_method:'card',  created_at:'2026-04-14T12:45:00', status:'completed', served_by_name:'Jane' },
-  { receipt_no:'MU-000035', client_name:'Walk-in',      item_count:1, total:850,  payment_method:'cash',  created_at:'2026-04-14T11:20:00', status:'completed', served_by_name:'Jane' },
-  { receipt_no:'MU-000034', client_name:'Fatuma Hassan',item_count:3, total:2850, payment_method:'mpesa', created_at:'2026-04-14T10:05:00', status:'completed', served_by_name:'Jane' },
-]
-const DUMMY_LOW_STOCK = [
-  { product_name:'Navy Trouser',    category_name:'Uniforms',   color:'Navy',  size:'28', stock_qty:2 },
-  { product_name:'Red Tracksuit',   category_name:'Tracksuits', color:'Red',   size:'L',  stock_qty:3 },
-  { product_name:'Black School Bag',category_name:'Bags',       color:'Black', size:'18"',stock_qty:4 },
-  { product_name:'White T-Shirt',   category_name:'Uniforms',   color:'White', size:'S',  stock_qty:5 },
-]
+
 
 const STAT_CARDS = [
   { label:"Today's Revenue",   key:'revenue',       prefix:'KES ', suffix:'',   change:'+12%', up:true  },
@@ -25,9 +10,9 @@ const STAT_CARDS = [
 ]
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState(DUMMY_SUMMARY)
-  const [sales, setSales]     = useState(DUMMY_SALES)
-  const [lowStock, setLowStock] = useState(DUMMY_LOW_STOCK)
+  const [summary, setSummary] = useState({ transactions: 0, revenue: 0, items_sold: 0, low_stock: 0 })
+  const [sales, setSales]     = useState([])
+  const [lowStock, setLowStock] = useState([])
 
   useEffect(() => {
     if (!window.api) return
