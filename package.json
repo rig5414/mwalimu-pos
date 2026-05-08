@@ -1,6 +1,6 @@
 {
   "name": "mwalimu-pos",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
   "author": "Manasseh Telle",
   "main": "electron/main.js",
@@ -71,7 +71,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Mwalimu POS"
+      "shortcutName": "Mwalimu POS",
+      "artifactName": "Mwalimu-POS-Setup-${version}.${ext}"
     }
   }
 }

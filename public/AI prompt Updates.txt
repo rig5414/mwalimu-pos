@@ -1,5 +1,5 @@
 📊 PROJECT STATUS
-Current Version: v1.0.7
+Current Version: v1.0.8
 Current Phase: Phase 4 (UI/UX Refinement & IMS)
 Repository: https://github.com/rig5414/mwalimu-pos
 Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
