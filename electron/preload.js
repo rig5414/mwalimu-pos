@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('api', {
     create:       (data)    => invoke('products:create', data),
     update:       (data)    => invoke('products:update', data),
     delete:       (id)      => invoke('products:delete', id),    // admin only
+    importMapped: (data)    => invoke('products:importMapped', data),
   },
 
   categories: {
@@ -91,6 +92,15 @@ contextBridge.exposeInMainWorld('api', {
     dailySummary:   (date)  => invoke('reports:daily', date),
     stockReport:    ()      => invoke('reports:stock'),
     salesByCategory: (range) => invoke('reports:salesByCategory', range),
+    inventorySummary: ()   => invoke('reports:inventorySummary'),
+    itemsSoldInRange: (range) => invoke('reports:itemsSoldInRange', range),
+  },
+
+  // ── POS pinned favorites ───────────────────────────────────────────────────
+  favorites: {
+    list:   ()              => invoke('favorites:list'),
+    add:    (variant_id)     => invoke('favorites:add', { variant_id }),
+    remove: (variant_id)     => invoke('favorites:remove', { variant_id }),
   },
 
 })

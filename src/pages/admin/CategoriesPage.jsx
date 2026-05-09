@@ -12,6 +12,7 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({
     name: '',
     icon: '👔',
+    parent_id: '',
   })
   const toast = useToast()
 
@@ -49,6 +50,7 @@ export default function CategoriesPage() {
             id: editingId,
             name: formData.name.trim(),
             icon: formData.icon,
+            parent_id: formData.parent_id || null,
             sort_order: index,
           })
           if (!res.ok) throw new Error(res.error)
@@ -64,6 +66,7 @@ export default function CategoriesPage() {
           const res = await window.api.categories.create({
             name: formData.name.trim(),
             icon: formData.icon,
+            parent_id: formData.parent_id || null,
             sort_order: categories.length,
           })
           if (!res.ok) throw new Error(res.error)
@@ -107,6 +110,7 @@ export default function CategoriesPage() {
     setFormData({
       name: category.name,
       icon: category.icon,
+      parent_id: category.parent_id || '',
     })
     setEditingId(category.id)
     setShowForm(true)
@@ -116,6 +120,7 @@ export default function CategoriesPage() {
     setFormData({
       name: '',
       icon: '👔',
+      parent_id: '',
     })
     setEditingId(null)
     setShowForm(false)
@@ -135,6 +140,7 @@ export default function CategoriesPage() {
               id: category.id,
               name: category.name,
               icon: category.icon,
+              parent_id: category.parent_id || null,
               sort_order: index,
             })
           )
@@ -174,6 +180,23 @@ export default function CategoriesPage() {
               </div>
 
               <div>
+                <label className="label">Parent Category (Optional)</label>
+                <select
+                  className="input"
+                  value={formData.parent_id}
+                  onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
+                >
+                  <option value="">None (Top Level)</option>
+                  {categories
+                    .filter(c => !c.parent_id && c.id !== editingId)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              <div className="col-span-2">
                 <label className="label">Icon</label>
                 <div className="flex gap-2 flex-wrap">
                   {ICONS.map(icon => (
@@ -218,8 +241,18 @@ export default function CategoriesPage() {
               <div className="flex items-center gap-3">
                 <div className="text-4xl">{category.icon}</div>
                 <div>
-                  <h3 className="font-bold text-gray-900">{category.name}</h3>
-                  <p className="text-xs text-gray-400">{category.id}</p>
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    {category.name}
+                    {category.parent_id && (
+                      <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase tracking-wider">Sub</span>
+                    )}
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    {category.parent_id 
+                      ? `Under: ${categories.find(c => c.id === category.parent_id)?.name || 'Unknown'}`
+                      : 'Top Level'
+                    }
+                  </p>
                 </div>
               </div>
             </div>

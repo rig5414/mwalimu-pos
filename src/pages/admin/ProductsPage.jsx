@@ -13,18 +13,66 @@ const BLANK_FORM = {
 }
 
 const CATEGORY_SUBCATEGORIES = {
-  'school-uniforms': ['Pullovers', 'Shirts', 'Trousers', 'Dresses', 'Half Sweaters', 'Socks', 'Skirts', 'Marvins', 'Gloves'],
-  'games-attires': ['Tshirts', 'Tracksuits', 'Games Shorts', 'Wrappers Bloomers', 'Jersey', 'Girls Shorts'],
-  footwear: ['Toughees', 'Studeez', 'Semi + Toughees', 'Rubber Shoes', 'Slippers', 'Crocs', 'Bata Breathers'],
+  'school-uniforms': ['Pullovers', 'Shirts', 'Trousers', 'Dresses', 'Windbreakers', 'Socks', 'Skirts', 'Marvins', 'Gloves'],
+  'games-attires': ['T-Shirts', 'Tracksuits', 'Games Shorts', 'Wrappers/Bloomers', 'Jersey', 'Girls Shorts'],
+  footwear: ['Toughees', 'Studeez', 'Semi-Toughees', 'Rubber Shoes', 'Slippers', 'Crocs', 'Bata Breathers'],
   'inner-wear': ['Boxers', 'Panties', 'Vests', 'Sports Bra'],
   beddings: ['Blankets', 'Bed Covers', 'Bedsheets', 'Pajamas', 'Nightdress', 'Towels'],
   'school-bags': ['Backpacks', 'Duffel Bags', 'Lunch Bags'],
-  schools: ['Londiani Christian Academy', 'Londiani Junior Secondary'],
+  schools: ['Primary', 'Junior Secondary'],
 }
 
 const SCHOOL_ITEMS = ['Pullover', 'Half Sweater', 'Shirt', 'Dress', 'Girls Trouser', 'Long Trouser', 'Tracksuit', 'Socks', 'Tie', 'Marvin', 'Trouser', 'Tshirt', 'Girls Socks', 'Boys Socks']
 
+const IMPORT_FIELD_OPTIONS = [
+  { value: '', label: '— Ignore —' },
+  { value: 'name', label: 'Product name' },
+  { value: 'price', label: 'Selling price' },
+  { value: 'cost_price', label: 'Cost price' },
+  { value: 'barcode', label: 'Barcode' },
+  { value: 'category', label: 'Category (name)' },
+  { value: 'subcategory', label: 'Subcategory' },
+  { value: 'color', label: 'Variant color' },
+  { value: 'size', label: 'Variant size' },
+  { value: 'stock_qty', label: 'Stock qty' },
+  { value: 'sku', label: 'SKU' },
+  { value: 'description', label: 'Description' },
+]
 
+function parseCsvSimple(text) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  if (!lines.length) return { headers: [], rows: [] }
+  const splitLine = (line) => {
+    const out = []
+    let cur = ''
+    let q = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') {
+        q = !q
+        continue
+      }
+      if (ch === ',' && !q) {
+        out.push(cur.trim())
+        cur = ''
+        continue
+      }
+      cur += ch
+    }
+    out.push(cur.trim())
+    return out
+  }
+  const headers = splitLine(lines[0]).map((h) => h.replace(/^"|"$/g, ''))
+  const rows = lines.slice(1).map((line) => {
+    const cells = splitLine(line)
+    const row = {}
+    headers.forEach((h, i) => {
+      row[h] = (cells[i] ?? '').replace(/^"|"$/g, '')
+    })
+    return row
+  })
+  return { headers, rows }
+}
 
 export default function ProductsPage() {
   const [products, setProducts]         = useState([])
@@ -33,6 +81,11 @@ export default function ProductsPage() {
   const [editingId, setEditingId]       = useState(null)
   const [saving, setSaving]             = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null) // product to confirm deletion
+  const [importOpen, setImportOpen] = useState(false)
+  const [csvHeaders, setCsvHeaders] = useState([])
+  const [csvRows, setCsvRows] = useState([])
+  const [columnMap, setColumnMap] = useState({})
+  const [importing, setImporting] = useState(false)
   const [formData, setFormData]         = useState(BLANK_FORM)
   const [variants, setVariants]         = useState([])
   const [newVariant, setNewVariant]     = useState({ color: '', color_hex: '#1a3a5c', size: '', stock_qty: '' })
@@ -253,14 +306,118 @@ export default function ProductsPage() {
 
   const categorySubcategories = CATEGORY_SUBCATEGORIES[formData.category_id] || []
 
+  function guessColumnMap(headers) {
+    const initial = {}
+    for (const h of headers) {
+      const low = h.toLowerCase()
+      if (low.includes('name') && !low.includes('category') && !low.includes('school')) initial[h] = 'name'
+      else if ((low.includes('sell') && low.includes('price')) || (low === 'price' && !low.includes('cost')))
+        initial[h] = 'price'
+      else if (low.includes('cost')) initial[h] = 'cost_price'
+      else if (low.includes('barcode') || low === 'upc' || low === 'ean') initial[h] = 'barcode'
+      else if (low.includes('category') && !low.includes('sub')) initial[h] = 'category'
+      else if (low.includes('subcat')) initial[h] = 'subcategory'
+      else if (low.includes('color')) initial[h] = 'color'
+      else if (low.includes('size')) initial[h] = 'size'
+      else if (low.includes('stock') || low === 'qty' || low.includes('quantity')) initial[h] = 'stock_qty'
+      else if (low.includes('sku')) initial[h] = 'sku'
+      else if (low.includes('desc')) initial[h] = 'description'
+    }
+    return initial
+  }
+
+  function handleImportFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const { headers, rows } = parseCsvSimple(String(reader.result))
+      if (!headers.length) {
+        toast.error('CSV has no header row')
+        return
+      }
+      setCsvHeaders(headers)
+      setCsvRows(rows)
+      setColumnMap(guessColumnMap(headers))
+      setImportOpen(true)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  async function runCsvImport() {
+    const defaultCat = categories[0]?.id
+    if (!defaultCat) {
+      toast.error('Load categories first')
+      return
+    }
+    const mapped = csvRows
+      .map((row) => {
+        const o = {}
+        for (const col of csvHeaders) {
+          const field = columnMap[col]
+          if (!field) continue
+          o[field] = row[col]
+        }
+        let category_id = null
+        if (o.category) {
+          const match = categories.find(
+            (c) => c.name.toLowerCase() === String(o.category).trim().toLowerCase()
+          )
+          category_id = match?.id || null
+        }
+        return {
+          name: o.name ? String(o.name).trim() : '',
+          price: o.price,
+          cost_price: o.cost_price,
+          barcode: o.barcode,
+          category_id: category_id || defaultCat,
+          subcategory: o.subcategory ? String(o.subcategory).trim() : '',
+          color: o.color,
+          size: o.size,
+          stock_qty: o.stock_qty,
+          sku: o.sku,
+          description: o.description,
+        }
+      })
+      .filter((r) => r.name && r.price !== undefined && r.price !== '')
+
+    if (!mapped.length) {
+      toast.error('No valid rows — check name and price columns')
+      return
+    }
+
+    setImporting(true)
+    try {
+      if (!window.api) throw new Error('API unavailable')
+      const res = await window.api.products.importMapped({ rows: mapped, default_category_id: defaultCat })
+      if (!res.ok) throw new Error(res.error)
+      const { imported, failed } = res.data
+      toast.success(`Imported ${imported} product(s)`)
+      if (failed?.length) toast.warning(`${failed.length} row(s) failed — check for duplicate barcodes`)
+      setImportOpen(false)
+      await loadProducts()
+    } catch (err) {
+      toast.error(err.message || 'Import failed')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
         {!showForm && (
-          <button onClick={() => setShowForm(true)} className="btn-primary">
-            + Add Product
-          </button>
+          <div className="flex items-center gap-2">
+            <label className="btn-secondary cursor-pointer inline-flex items-center">
+              <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportFile} />
+              Import CSV
+            </label>
+            <button type="button" onClick={() => setShowForm(true)} className="btn-primary">
+              + Add Product
+            </button>
+          </div>
         )}
       </div>
 
@@ -570,6 +727,53 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+
+      {/* ── CSV Import mapping ── */}
+      {importOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(10,20,40,0.6)' }}
+          onClick={(e) => e.target === e.currentTarget && setImportOpen(false)}
+        >
+          <div className="bg-white rounded-2xl shadow-modal w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="font-head font-bold text-lg">Map CSV columns</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {csvRows.length} data rows · Match each file column to a database field (category can be a category
+                name).
+              </p>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-3">
+              {csvHeaders.map((h) => (
+                <div key={h} className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-mono font-semibold text-gray-800 min-w-[120px] truncate" title={h}>
+                    {h}
+                  </span>
+                  <select
+                    className="input flex-1 min-w-[200px] text-sm"
+                    value={columnMap[h] || ''}
+                    onChange={(e) => setColumnMap({ ...columnMap, [h]: e.target.value })}
+                  >
+                    {IMPORT_FIELD_OPTIONS.map((opt) => (
+                      <option key={opt.value || 'ignore'} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button type="button" className="btn-secondary" onClick={() => setImportOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" disabled={importing} onClick={runCsvImport}>
+                {importing ? 'Importing…' : `Import ${csvRows.length} rows`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Delete Confirmation Modal ── */}
       {confirmDelete && (

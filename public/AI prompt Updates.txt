@@ -1,6 +1,6 @@
 📊 PROJECT STATUS
-Current Version: v1.0.8
-Current Phase: Phase 4 (UI/UX Refinement & IMS)
+Current Version: v1.0.9
+Current Phase: Phase 4 (UI/UX Refinement & Hardware) — IN PROGRESS / MAJOR ITEMS COMPLETE
 Repository: https://github.com/rig5414/mwalimu-pos
 Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
 Last Updated: 2026-05-09
@@ -32,20 +32,43 @@ UI/UX & Polish
 ✅ Saving States: Added loading/disabled states to buttons during DB writes to prevent duplicate entries.
 ✅ Theme: Modern navy/amber palette with Space Grotesk/DM Sans typography.
 
-🔜 REMAINING (Phase 4 onwards)
-Phase 4 (UI/UX Refinement)
-- Loading States: Add skeleton screens or spinners for slower DB queries.
-- Tablet Optimization: Fine-tune touch targets for folder cards.
-- Search Polish: Enable search across all levels of the hierarchy with direct variant results.
-- Sales Reports: Basic filtering by date/category in the Admin Sales page.
+✅ COMPLETED (Phase 4 — 2026-05-09)
+Visily-style navigation & tablet UX
+✅ Hierarchical tree sidebar (collapsible, ~20–26% width) on POS: jump categories/subcategories/types/products without returning to root; counts per node.
+✅ Tablet-oriented touch targets (44–48px+) on POS cart, qty steppers, checkout, folder/variant cards; wider cart column.
+✅ Dense vs Touch display mode: toggle on POS; persisted via zustand (`mwalimu-pos-display-mode`); dense uses tighter grids and stock badges.
+
+Sales & reporting
+✅ Admin Sales History: Master–detail layout (receipt list + `ReceiptPreview`); date range + text search; Reprint (thermal + simulation); Void wired to `sales:void`.
+✅ Dashboard 2.0: KPI row (today’s sales, inventory value at cost, low stock count, items sold); **Sales by Category** bar chart (recharts, today); low-stock panel + link to stock.
+
+Hardware & receipts
+✅ Thermal printing: `node-thermal-printer` in main process (`electron/ipc/printReceipt.js`); IPC `print:receipt` returns `{ printed, simulated, error? }`.
+✅ Simulation mode: When `MWALIMU_THERMAL_INTERFACE` is unset or `execute()` fails, renderer shows HTML receipt / toast (no crash).
+✅ Configure printer: set env var e.g. `MWALIMU_THERMAL_INTERFACE=printer:YOUR_PRINTER_SHARE_NAME` or `tcp://192.168.x.x:9100` (see node-thermal-printer docs).
+
+Data & import
+✅ `stock:getAll` includes `price`, `product_barcode`, `icon` for POS/barcode matching.
+✅ CSV product import on Products page: upload CSV → map columns → `products:importMapped` (one variant per row).
+✅ POS favorites: `pos_favorites` table (DB v2); star on variants; footer pill bar for one-tap add; IPC `favorites:list|add|remove`.
+✅ Shopkeeper Stock: scan unknown barcode opens **Quick Add Product** modal (barcode/SKU pre-filled, creates product + variant).
+
+IPC / API additions
+✅ `reports:inventorySummary`, `reports:salesByCategory`, `reports:itemsSoldInRange`
+✅ `products:importMapped`, `favorites:*`, async-safe IPC handler (`await Promise.resolve(fn)`).
+
+🔜 OPTIONAL / LATER (Phase 4+)
+- Skeleton loaders for heavy DB views.
+- Full-text / cross-level search with ranked variant hits (partially: POS search includes SKU/barcode).
+- Donut chart for stock distribution (mockup reference).
+- Dedicated Settings route (display mode currently on POS header).
 
 Phase 5 (Inventory Management System - IMS)
-- Stock Audit Trail: UI to view history of stock movements (Additions/Sales).
+- Stock Audit Trail UI (movements are already logged in DB).
 - Low Stock Settings: Per-product thresholds for low stock warnings.
 - Batch Stock Entry: Capability to add multiple variants at once in the Stock page.
 
 Phase 6+ (Future)
-- Thermal Printer: Raw ESC/POS printing for receipts.
 - Cloud Sync: Supabase/PostgreSQL sync for multi-branch support.
 - M-Pesa Integration: STK Push for automated payments.
 
@@ -54,19 +77,24 @@ Tech Stack
 - Frontend: React 18 + Vite + HashRouter + Zustand
 - Desktop: Electron 29
 - Styling: Tailwind CSS v3
+- Charts: recharts
 - Database: SQLite (better-sqlite3)
 - IPC: window.api (contextBridge)
+- Thermal: node-thermal-printer (EPSON-style default)
 
 Project Structure
 mwalimu-pos/
 ├── electron/
-│   ├── db/migrate.js        # SQLite schema
-│   └── ipc/handlers.js      # All DB operations (No dummy fallbacks allowed in src)
+│   ├── db/migrate.js        # SQLite schema + user_version migrations
+│   ├── ipc/handlers.js      # DB + reports + favorites + print IPC
+│   ├── ipc/printReceipt.js  # ESC/POS thermal pipeline
+│   └── preload.js
 ├── src/
-│   ├── pages/               # All React pages (Strictly DB-driven via window.api)
-│   ├── store/               # Zustand stores (auth, cart)
-│   └── components/pos/      # POS specific components (Cart, Payment, Receipts)
-├── seed_sample_data.js      # Realistic data seeder (Run via npx electron seed_sample_data.js)
+│   ├── lib/hierarchyNav.js  # Linear taxonomy, getNavSegments, tree, barcode match
+│   ├── pages/               # React pages (DB-driven via window.api)
+│   ├── store/               # Zustand (auth, cart, displayMode)
+│   └── components/pos/     # Cart, Payment, ReceiptPreview, HierarchyTreeSidebar
+├── seed_sample_data.js
 └── public/AI prompt Updates.txt # This status tracker
 
 🚀 DEPLOYMENT
@@ -85,9 +113,8 @@ mwalimu-pos/
 4. Transitions: Wrap multi-step DB writes in `db.transaction(() => { ... })()`.
 
 📋 NEXT STEPS FOR AGENT
-1) Verify full end-to-end POS flow: Scan item -> Add to cart -> Checkout -> Stock Deduction check.
-2) Implement the Stock History / Audit Trail UI in the Admin section.
-3) Refine the Dashboard with more detailed charts (e.g., Sales by Category).
-4) Ensure the "Low Stock" dashboard card links to a filtered view in the Stock page.
+1) Smoke-test in Electron: POS tree + checkout + thermal env on/off; Sales reprint/void; CSV import.
+2) Optional: stock distribution donut + audit trail UI.
+3) Document printer share naming for Windows in README (user request only).
 
 You are now in Phase 4. All dummy data "safety nets" are gone—ensure database integrity at all times. 🚀

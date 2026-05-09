@@ -1,6 +1,6 @@
 {
   "name": "mwalimu-pos",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
   "author": "Manasseh Telle",
   "main": "electron/main.js",
@@ -26,6 +26,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.0",
+    "recharts": "^3.8.1",
     "uuid": "^9.0.0",
     "zustand": "^4.5.0"
   },

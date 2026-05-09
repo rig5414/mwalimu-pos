@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../../hooks/useToast'
+import { computeBrowseState } from '../../lib/hierarchyNav'
 
 export default function StockPageAdmin() {
   const [stock, setStock]       = useState([])
@@ -15,98 +16,15 @@ export default function StockPageAdmin() {
     window.api.stock.getAll().then(res => { if (res.ok) setStock(res.data) })
   }, [])
 
-  const filtered = stock.filter(s =>
-    !search || s.product_name?.toLowerCase().includes(search.toLowerCase())
+  const filtered = stock.filter(
+    (s) =>
+      !search ||
+      s.product_name?.toLowerCase().includes(search.toLowerCase()) ||
+      s.sku?.toLowerCase().includes(search.toLowerCase()) ||
+      s.product_barcode?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const getTypeFolder = (item) => {
-    const sub = item.subcategory || 'Uncategorized'
-    const name = item.product_name || ''
-    if (sub === 'Pullovers') {
-      if (item.school_id) return 'Badged'
-      if (name.toLowerCase().includes('plain')) return 'Plain'
-      if (name.toLowerCase().includes('striped')) return 'Striped'
-    }
-    if (sub === 'Ties' || sub === 'Tie') {
-       if (name.toLowerCase().includes('elastic')) return 'Elastic'
-       if (name.toLowerCase().includes('long')) return 'Long'
-    }
-    if (sub === 'Marvins') {
-       if (name.toLowerCase().includes('best')) return 'Best Quality'
-       if (name.toLowerCase().includes('normal')) return 'Normal Quality'
-    }
-    return name
-  }
-
-  let currentLevelItems = []
-  let viewType = 'folders'
-
-  if (search) {
-     currentLevelItems = filtered.map(item => ({ ...item, isVariant: true }))
-     viewType = 'variants'
-  } else if (path.length === 0) {
-    const grouped = {}
-    filtered.forEach(item => {
-      const key = item.category_name || 'Uncategorized'
-      if (!grouped[key]) grouped[key] = { id: key, name: key, type: 'category', total_qty: 0, itemsCount: 0 }
-      grouped[key].total_qty += item.stock_qty || 0
-      grouped[key].itemsCount += 1
-    })
-    currentLevelItems = Object.values(grouped)
-  } else if (path.length === 1) {
-    const category = path[0]
-    const grouped = {}
-    filtered.filter(i => (i.category_name || 'Uncategorized') === category).forEach(item => {
-      const key = item.subcategory || 'Uncategorized'
-      if (!grouped[key]) grouped[key] = { id: key, name: key, type: 'subcategory', total_qty: 0, itemsCount: 0 }
-      grouped[key].total_qty += item.stock_qty || 0
-      grouped[key].itemsCount += 1
-    })
-    currentLevelItems = Object.values(grouped)
-  } else if (path.length === 2) {
-    const category = path[0]
-    const subcat = path[1]
-    const grouped = {}
-    filtered.filter(i => (i.category_name || 'Uncategorized') === category && (i.subcategory || 'Uncategorized') === subcat).forEach(item => {
-      const key = getTypeFolder(item)
-      if (!grouped[key]) grouped[key] = { id: key, name: key, type: 'type', total_qty: 0, itemsCount: 0 }
-      grouped[key].total_qty += item.stock_qty || 0
-      grouped[key].itemsCount += 1
-    })
-    currentLevelItems = Object.values(grouped)
-  } else if (path.length === 3) {
-     const category = path[0]
-     const subcat = path[1]
-     const typeFolder = path[2]
-     const itemsInType = filtered.filter(i => (i.category_name || 'Uncategorized') === category && (i.subcategory || 'Uncategorized') === subcat && getTypeFolder(i) === typeFolder)
-     
-     const uniqueProducts = new Set(itemsInType.map(i => i.product_name))
-     if (uniqueProducts.size === 1) {
-       currentLevelItems = itemsInType.map(item => ({ ...item, isVariant: true }))
-       viewType = 'variants'
-     } else {
-       const grouped = {}
-       itemsInType.forEach(item => {
-         const key = item.product_name
-         if (!grouped[key]) grouped[key] = { id: key, name: key, type: 'product', total_qty: 0, itemsCount: 0 }
-         grouped[key].total_qty += item.stock_qty || 0
-         grouped[key].itemsCount += 1
-       })
-       currentLevelItems = Object.values(grouped)
-     }
-  } else if (path.length === 4) {
-     const category = path[0]
-     const subcat = path[1]
-     const typeFolder = path[2]
-     const productName = path[3]
-     currentLevelItems = filtered.filter(i => 
-       (i.category_name || 'Uncategorized') === category &&
-       (i.subcategory || 'Uncategorized') === subcat && 
-       getTypeFolder(i) === typeFolder && 
-       i.product_name === productName
-     ).map(item => ({ ...item, isVariant: true }))
-     viewType = 'variants'
-  }
+  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search)
 
   const doStock = async () => {
     setSaving(true)
@@ -180,7 +98,7 @@ export default function StockPageAdmin() {
               <div 
                 key={folder.id} 
                 className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-primary hover:shadow-md transition-all group flex flex-col justify-between"
-                onClick={() => setPath([...path, folder.name])}
+                onClick={() => setPath([...path, folder.id])}
               >
                 <div>
                   <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors text-primary">

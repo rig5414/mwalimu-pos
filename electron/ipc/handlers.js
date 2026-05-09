@@ -14,7 +14,8 @@ module.exports.register = function (ipcMain, db) {
   const handle = (channel, fn) => {
     ipcMain.handle(channel, async (_event, payload) => {
       try {
-        return { ok: true, data: fn(payload) }
+        const data = await Promise.resolve(fn(payload))
+        return { ok: true, data }
       } catch (err) {
         console.error(`IPC error [${channel}]:`, err.message)
         return { ok: false, error: err.message }
@@ -198,13 +199,78 @@ module.exports.register = function (ipcMain, db) {
     return { ok: true }
   })
 
+  /** Bulk import: each row = { name, category_id, subcategory, school_id, price, cost_price, barcode, icon, description, color, size, sku, stock_qty } */
+  handle('products:importMapped', ({ rows, default_category_id }) => {
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('No import rows')
+
+    const summary = { imported: 0, failed: [] }
+
+    const runBatch = db.transaction((list) => {
+      for (const r of list) {
+        try {
+          const name = String(r.name || '').trim()
+          if (!name) throw new Error('Missing name')
+          const categoryId = r.category_id || default_category_id
+          if (!categoryId) throw new Error('Missing category')
+          const price = Number(r.price)
+          if (!Number.isFinite(price) || price < 0) throw new Error('Invalid price')
+
+          const id = uuidv4()
+          db.prepare(`
+            INSERT INTO products (id, name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+          `).run(
+            id,
+            name,
+            categoryId,
+            r.subcategory || null,
+            r.school_id || null,
+            r.icon || '📦',
+            Number(r.cost_price) || 0,
+            price,
+            r.barcode ? String(r.barcode).trim() || null : null,
+            r.description || null
+          )
+          db.prepare(`
+            INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
+            VALUES (?,?,?,?,?,?,?)
+          `).run(
+            uuidv4(),
+            id,
+            (r.color && String(r.color).trim()) || '—',
+            r.color_hex || null,
+            (r.size && String(r.size).trim()) || '—',
+            r.sku ? String(r.sku).trim() || null : null,
+            Math.max(0, Number(r.stock_qty) || 0)
+          )
+          summary.imported += 1
+        } catch (err) {
+          summary.failed.push({ name: r.name, error: err.message })
+        }
+      }
+    })
+
+    runBatch(rows)
+    return summary
+  })
+
   // ── Stock ──────────────────────────────────────────────────────────────────
   handle('stock:getAll', () => {
     return db.prepare(`
-      SELECT pv.*, p.name as product_name, p.category_id, p.subcategory, p.school_id, c.name as category_name
+      SELECT pv.*,
+             p.name as product_name,
+             p.price,
+             p.icon,
+             p.barcode as product_barcode,
+             p.category_id,
+             p.subcategory,
+             p.school_id,
+             c.name as category_name,
+             sch.name as school_name
       FROM product_variants pv
       JOIN products p ON pv.product_id = p.id
       JOIN categories c ON p.category_id = c.id
+      LEFT JOIN categories sch ON p.school_id = sch.id
       ORDER BY p.name, pv.color, pv.size
     `).all()
   })
@@ -298,12 +364,20 @@ module.exports.register = function (ipcMain, db) {
 
   handle('sales:getAll', (filters = {}) => {
     let query = `
-      SELECT s.*, u.name as served_by_name FROM sales s
-      LEFT JOIN users u ON s.served_by = u.id WHERE 1=1
+      SELECT DISTINCT s.*, u.name as served_by_name
+      FROM sales s
+      LEFT JOIN users u ON s.served_by = u.id
+      LEFT JOIN sale_items si ON si.sale_id = s.id
+      WHERE 1=1
     `
     const params = []
     if (filters.from) { query += ' AND date(s.created_at) >= ?'; params.push(filters.from) }
     if (filters.to)   { query += ' AND date(s.created_at) <= ?'; params.push(filters.to) }
+    if (filters.search && String(filters.search).trim()) {
+      const q = `%${String(filters.search).trim()}%`
+      query += ' AND (s.receipt_no LIKE ? OR IFNULL(s.client_name,"") LIKE ? OR si.product_name LIKE ? OR IFNULL(si.color,"") LIKE ? OR IFNULL(si.size,"") LIKE ?)'
+      params.push(q, q, q, q, q)
+    }
     query += ' ORDER BY s.created_at DESC LIMIT 200'
     return db.prepare(query).all(...params)
   })
@@ -426,12 +500,82 @@ module.exports.register = function (ipcMain, db) {
     return { summary, byMethod, topItems }
   })
 
+  handle('reports:inventorySummary', () => {
+    return db.prepare(`
+      SELECT COALESCE(SUM(pv.stock_qty * p.cost_price), 0) as inventory_value,
+             COALESCE(SUM(pv.stock_qty), 0) as units
+      FROM product_variants pv
+      JOIN products p ON pv.product_id = p.id
+      WHERE p.is_active = 1
+    `).get()
+  })
+
+  handle('reports:salesByCategory', ({ from, to } = {}) => {
+    const today = new Date().toISOString().split('T')[0]
+    const f = from || today
+    const t = to || today
+    return db.prepare(`
+      SELECT COALESCE(c.name, 'Uncategorized') as category,
+             SUM(si.total_price) as revenue
+      FROM sale_items si
+      JOIN sales s ON si.sale_id = s.id
+      LEFT JOIN product_variants pv ON si.variant_id = pv.id
+      LEFT JOIN products p ON pv.product_id = p.id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE date(s.created_at) BETWEEN date(?) AND date(?) AND s.status = 'completed'
+      GROUP BY c.name
+      ORDER BY revenue DESC
+    `).all(f, t)
+  })
+
+  handle('reports:itemsSoldInRange', ({ from, to } = {}) => {
+    const today = new Date().toISOString().split('T')[0]
+    const f = from || today
+    const t = to || today
+    return db.prepare(`
+      SELECT COALESCE(SUM(si.quantity), 0) as items_sold
+      FROM sale_items si
+      JOIN sales s ON si.sale_id = s.id
+      WHERE date(s.created_at) BETWEEN date(?) AND date(?) AND s.status = 'completed'
+    `).get(f, t)
+  })
+
+  // ── POS favorites (pinned variants) ────────────────────────────────────────
+  handle('favorites:list', () => {
+    return db.prepare(`
+      SELECT pv.*, p.name as product_name, p.price, p.icon, p.barcode as product_barcode,
+             p.subcategory, p.school_id, c.name as category_name, f.sort_order
+      FROM pos_favorites f
+      JOIN product_variants pv ON f.variant_id = pv.id
+      JOIN products p ON pv.product_id = p.id
+      JOIN categories c ON p.category_id = c.id
+      ORDER BY f.sort_order ASC, f.created_at ASC
+    `).all()
+  })
+
+  handle('favorites:add', ({ variant_id }) => {
+    if (!variant_id) throw new Error('variant_id required')
+    const v = db.prepare('SELECT id FROM product_variants WHERE id = ?').get(variant_id)
+    if (!v) throw new Error('Variant not found')
+    const maxSort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM pos_favorites').get()
+    db.prepare('INSERT OR IGNORE INTO pos_favorites (variant_id, sort_order) VALUES (?, ?)').run(
+      variant_id,
+      (maxSort?.m || 0) + 1
+    )
+    return { ok: true }
+  })
+
+  handle('favorites:remove', ({ variant_id }) => {
+    db.prepare('DELETE FROM pos_favorites WHERE variant_id = ?').run(variant_id)
+    return { ok: true }
+  })
+
   // ── Print ──────────────────────────────────────────────────────────────────
-  handle('print:receipt', (receiptData) => {
-    // Phase 2: integrate node-thermal-printer here
-    // For now, return data for browser print
-    console.log('🖨️ Print request received:', receiptData.receipt_no)
-    return { ok: true, message: 'Print queued' }
+  const { printThermalReceipt } = require('./printReceipt')
+  handle('print:receipt', async (receiptData) => {
+    const result = await printThermalReceipt(receiptData)
+    console.log('🖨️ Print:', receiptData?.receipt_no, result)
+    return result
   })
 
   // ── Sync ───────────────────────────────────────────────────────────────────
@@ -456,10 +600,22 @@ module.exports.register = function (ipcMain, db) {
 
 // ── Receipt number generator ──────────────────────────────────────────────────
 function generateReceiptNo(db) {
+  let num = 1
   const last = db.prepare(
-    "SELECT receipt_no FROM sales ORDER BY created_at DESC LIMIT 1"
+    "SELECT receipt_no FROM sales ORDER BY receipt_no DESC LIMIT 1"
   ).get()
-  if (!last) return 'MU-000001'
-  const num = parseInt(last.receipt_no.split('-')[1] || '0') + 1
-  return 'MU-' + String(num).padStart(6, '0')
+
+  if (last && last.receipt_no.includes('-')) {
+    num = parseInt(last.receipt_no.split('-')[1] || '0') + 1
+  }
+
+  let receiptNo = 'MU-' + String(num).padStart(6, '0')
+
+  // Fail-safe: if this number already exists, keep incrementing until we find a gap
+  while (db.prepare('SELECT id FROM sales WHERE receipt_no = ?').get(receiptNo)) {
+    num++
+    receiptNo = 'MU-' + String(num).padStart(6, '0')
+  }
+
+  return receiptNo
 }

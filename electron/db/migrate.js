@@ -141,6 +141,19 @@ module.exports = function migrate(db) {
     console.log('✅ Database upgraded to v1')
   }
 
+  if (user_version < 2) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pos_favorites (
+        variant_id  TEXT PRIMARY KEY REFERENCES product_variants(id) ON DELETE CASCADE,
+        sort_order  INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_pos_favorites_sort ON pos_favorites(sort_order, created_at);
+    `)
+    db.exec('PRAGMA user_version = 2')
+    console.log('✅ Database upgraded to v2 (POS favorites)')
+  }
+
   // ── Seed default users & demo data on first run ──────────────────────────
   const { v4: uuidv4 } = require('uuid')
   const crypto = require('crypto')
