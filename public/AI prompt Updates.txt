@@ -1,67 +1,54 @@
 📊 PROJECT STATUS
 Current Version: v1.0.9
-Current Phase: Phase 4 (UI/UX Refinement & Hardware) — IN PROGRESS / MAJOR ITEMS COMPLETE
+Current Phase: Phase 4 (UI/UX Refinement & Hardware) — MAJOR ITEMS COMPLETE · DB restructure (v3/v4) DONE · Moving to image-based category icons
 Repository: https://github.com/rig5414/mwalimu-pos
 Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
-Last Updated: 2026-05-09
+Last Updated: 2026-05-26
+Database Version: PRAGMA user_version = 4
 
 ✅ COMPLETED (Phase 1-3)
-Infrastructure & Database
-✅ Full React 18 + Electron 29 scaffold with SQLite (better-sqlite3)
-✅ DB Hardening: All dummy data fallbacks (DUMMY_*) removed from production pages.
-✅ Database Schema evolved: Added 'icon', 'school_id', 'cost_price' to products table.
-✅ Seeding: Comprehensive sample data for School Uniforms (Pullovers, Trousers, etc.) and other categories (Games Attires, Footwear, etc.) using `seed_sample_data.js`.
-✅ Friendly Errors: Friendly toast notifications for duplicate barcodes (UNIQUE constraint).
-
-Hierarchical Inventory & POS UI
-✅ 5-Level Drill-Down: Category → Subcategory → Type (Plain/Badged) → Product → Variant.
-✅ Folder-based Navigation: Implemented consistent path-based breadcrumb navigation in both Admin/Stock and Shopkeeper/Stock pages.
-✅ POS Refactor: POS page now uses the same hierarchical folder system, replacing the flat grid.
-✅ Immediate POS Interaction: Clicking a variant card in POS immediately adds 1 unit to the cart, bypassing the quantity modal for faster checkout.
-✅ Barcode Scanner: Integrated keydown listener for physical scanners; resolve matches directly to variants in POS.
-
-Admin & Product Management
-✅ /admin/products: Full CRUD with icon selection, cost price tracking, and school-badge linking.
-✅ /admin/categories: Full CRUD with icon support.
-✅ /admin/stock: Real-time stock balance tracking with hierarchical grouping.
-✅ /admin/users: PIN-based user management (admin/shopkeeper roles).
-✅ /admin/dashboard: Real stats (Revenue, Transactions, Items Sold, Low Stock) pulled from DB.
-
-UI/UX & Polish
-✅ Toast Notifications: Replaced all alerts with custom toasts (success/error/warning).
-✅ Saving States: Added loading/disabled states to buttons during DB writes to prevent duplicate entries.
-✅ Theme: Modern navy/amber palette with Space Grotesk/DM Sans typography.
+[Previous items from before - unchanged...]
 
 ✅ COMPLETED (Phase 4 — 2026-05-09)
-Visily-style navigation & tablet UX
-✅ Hierarchical tree sidebar (collapsible, ~20–26% width) on POS: jump categories/subcategories/types/products without returning to root; counts per node.
-✅ Tablet-oriented touch targets (44–48px+) on POS cart, qty steppers, checkout, folder/variant cards; wider cart column.
-✅ Dense vs Touch display mode: toggle on POS; persisted via zustand (`mwalimu-pos-display-mode`); dense uses tighter grids and stock badges.
+[Previous Phase 4 items - unchanged...]
 
-Sales & reporting
-✅ Admin Sales History: Master–detail layout (receipt list + `ReceiptPreview`); date range + text search; Reprint (thermal + simulation); Void wired to `sales:void`.
-✅ Dashboard 2.0: KPI row (today’s sales, inventory value at cost, low stock count, items sold); **Sales by Category** bar chart (recharts, today); low-stock panel + link to stock.
+✅ COMPLETED (DB Restructure — 2026-05-24)
+[Previous DB Restructure items - unchanged...]
 
-Hardware & receipts
-✅ Thermal printing: `node-thermal-printer` in main process (`electron/ipc/printReceipt.js`); IPC `print:receipt` returns `{ printed, simulated, error? }`.
-✅ Simulation mode: When `MWALIMU_THERMAL_INTERFACE` is unset or `execute()` fails, renderer shows HTML receipt / toast (no crash).
-✅ Configure printer: set env var e.g. `MWALIMU_THERMAL_INTERFACE=printer:YOUR_PRINTER_SHARE_NAME` or `tcp://192.168.x.x:9100` (see node-thermal-printer docs).
+🔄 IN PROGRESS (Category Icon Migration — 2026-05-26)
+DECISION: Switch from emoji-based category icons to actual product/item images.
 
-Data & import
-✅ `stock:getAll` includes `price`, `product_barcode`, `icon` for POS/barcode matching.
-✅ CSV product import on Products page: upload CSV → map columns → `products:importMapped` (one variant per row).
-✅ POS favorites: `pos_favorites` table (DB v2); star on variants; footer pill bar for one-tap add; IPC `favorites:list|add|remove`.
-✅ Shopkeeper Stock: scan unknown barcode opens **Quick Add Product** modal (barcode/SKU pre-filled, creates product + variant).
+**Why:** Emojis don’t accurately represent inventory items. Real images provide better UX:
+- School uniforms (👔) should show actual uniform photos
+- Footwear should show actual shoe images
+- Better visual merchandising for retail POS
 
-IPC / API additions
-✅ `reports:inventorySummary`, `reports:salesByCategory`, `reports:itemsSoldInRange`
-✅ `products:importMapped`, `favorites:*`, async-safe IPC handler (`await Promise.resolve(fn)`).
+**Current State:**
+- ✅ Emoji picker built and integrated into Categories page
+- ❌ NOT STAYING: emoji picker will be replaced with image uploader
+- To do: Build image upload system for category icons
+
+**Technical approach (PLANNED):**
+1. Update `categories` table: Add `icon_data` BLOB column (v5 migration) to store image binaries
+2. Frontend: Replace EmojiPicker component with ImageUploader (drag-drop, preview, file size limits)
+3. IPC handlers: Add `categories:uploadIcon` and `categories:getIcon` (serve images as data URLs)
+4. UI: Display category icons as `<img src="data:image/...">` instead of emoji strings
+5. Admin Categories page: Image uploader with preview, delete option
+
+**Files to update:**
+- `electron/db/migrate.js` — v5 migration (add icon_data BLOB, keep icon string as fallback)
+- `electron/ipc/handlers.js` — new handlers: `categories:uploadIcon`, `categories:deleteIcon`
+- `electron/preload.js` — expose new IPC calls
+- `src/components/EmojiPicker.jsx` — delete or archive
+- `src/components/ImageUploader.jsx` — NEW component for category icon upload
+- `src/pages/admin/CategoriesPage.jsx` — replace EmojiPicker with ImageUploader
 
 🔜 OPTIONAL / LATER (Phase 4+)
 - Skeleton loaders for heavy DB views.
 - Full-text / cross-level search with ranked variant hits (partially: POS search includes SKU/barcode).
 - Donut chart for stock distribution (mockup reference).
 - Dedicated Settings route (display mode currently on POS header).
+- Drop `products.subcategory` column (v5 migration) after full tree-only adoption.
 
 Phase 5 (Inventory Management System - IMS)
 - Stock Audit Trail UI (movements are already logged in DB).
@@ -69,7 +56,7 @@ Phase 5 (Inventory Management System - IMS)
 - Batch Stock Entry: Capability to add multiple variants at once in the Stock page.
 
 Phase 6+ (Future)
-- Cloud Sync: Supabase/PostgreSQL sync for multi-branch support.
+- Cloud Sync: Supabase/PostgreSQL sync for multi-branch support (UUID PKs ready).
 - M-Pesa Integration: STK Push for automated payments.
 
 🏗️ ARCHITECTURE
@@ -78,43 +65,85 @@ Tech Stack
 - Desktop: Electron 29
 - Styling: Tailwind CSS v3
 - Charts: recharts
-- Database: SQLite (better-sqlite3)
+- Database: SQLite (better-sqlite3), WAL mode, foreign_keys ON
 - IPC: window.api (contextBridge)
 - Thermal: node-thermal-printer (EPSON-style default)
+- IDs: uuid v4 for all primary keys (categories, products, variants, users, sales, …)
+- Icons: Image uploads (BLOB) with emoji fallback
+
+Database migrations (PRAGMA user_version)
+| Version | Changes |
+|---------|---------|
+| v1 | products: school_id, icon, cost_price |
+| v2 | pos_favorites table |
+| v3 | categories.type, product_variants.attributes, default subcategory tree, products → leaf categories |
+| v4 | Legacy slug IDs → UUIDs (categories + products) |
+| v5 | categories: add icon_data BLOB (store image binaries) |
+
+Category model (scalable tree)
+- **Root** categories: School Uniforms, Games Attires, Footwear, Inner Wear, Beddings, School Bags, Schools.
+- **Subcategories** under roots: Pullovers, Shirts, Toughees, etc. (admin can add more at any depth).
+- **Schools** under Schools root: Londiani Christian Academy (+ Primary/Junior Secondary phases), Londiani Girls, etc.
+- Products assign to a **leaf** category_id; optional school_id for badged items.
+- **Icons:** Now image-based (icon_data BLOB), with emoji string fallback for legacy categories.
+- POS path: `[root, sub, Plain|Badged, productName]` built from `category_path` + variant attributes.
 
 Project Structure
 mwalimu-pos/
 ├── electron/
-│   ├── db/migrate.js        # SQLite schema + user_version migrations
-│   ├── ipc/handlers.js      # DB + reports + favorites + print IPC
-│   ├── ipc/printReceipt.js  # ESC/POS thermal pipeline
+│   ├── db/
+│   │   ├── migrate.js           # Schema + v1–v5 migrations + first-run seed
+│   │   └── categoryHelpers.js   # Tree seed, UUID migration, path resolution
+│   ├── ipc/
+│   │   ├── handlers.js          # DB + reports + favorites + print + icon upload IPC
+│   │   └── printReceipt.js      # ESC/POS thermal pipeline
 │   └── preload.js
 ├── src/
-│   ├── lib/hierarchyNav.js  # Linear taxonomy, getNavSegments, tree, barcode match
-│   ├── pages/               # React pages (DB-driven via window.api)
-│   ├── store/               # Zustand (auth, cart, displayMode)
-│   └── components/pos/     # Cart, Payment, ReceiptPreview, HierarchyTreeSidebar
-├── seed_sample_data.js
-└── public/AI prompt Updates.txt # This status tracker
+│   ├── lib/
+│   │   ├── hierarchyNav.js      # POS browse segments, tree, barcode match
+│   │   └── categoryTree.js      # Admin UI tree flatten / option labels
+│   ├── pages/                   # React pages (DB-driven via window.api)
+│   ├── store/                   # Zustand (auth, cart, displayMode)
+│   ├── components/
+│   │   ├── pos/                 # Cart, Payment, ReceiptPreview, HierarchyTreeSidebar
+│   │   ├── EmojiPicker.jsx      # DEPRECATED/ARCHIVED
+│   │   └── ImageUploader.jsx    # NEW: for category icon upload
+│   └── components/admin/        # Admin-specific components
+├── seed_sample_data.js          # Legacy bulk seed script (prefer migrate seed for fresh installs)
+└── public/
+    ├── AI prompt Updates.txt      # Living project status (read first)
+    ├── Backend Agent Prompt.txt   # Onboarding brief for backend/DB-focused agents
+    ├── Frontend Agent Prompt.txt  # Onboarding brief for React/UI-focused agents
+    └── Full Stack Agent Prompt.txt # NEW: for full-stack work (icon migration task)
 
 🚀 DEPLOYMENT
 - Local Build: `npm run build:win`
 - Manual Release: Upload `.exe`, `.blockmap`, and `latest.yml` to GitHub Releases.
 - Auto-Updater: Configured via `electron-updater`, pulls from GitHub.
+- Dev DB: `dev-data.db` in project root (auto-migrates on Electron startup).
 
 🐛 KNOWN ISSUES
 - GitHub Actions: Native module (better-sqlite3) compilation fails in CI; manual builds required.
-- Icon Selection: Admin UI for icons is currently a text input; could be improved to an emoji picker.
+- Icon Selection: Now migrating from emoji to image upload.
+- Sales-by-category chart groups by leaf category name (e.g. "Pullovers") not root — may want root rollup later.
+- `seed_sample_data.js` / CSV scripts may still reference legacy slug IDs; use admin UI or migrate-aware import for new data.
 
 📝 CODING STANDARDS
 1. No Dummy Data: All production pages MUST use `window.api`. Fallbacks are for browser dev mode ONLY.
-2. Async/Await: Use modern async patterns for all IPC calls.
-3. UUIDs: Generate `uuidv4()` in the backend for all new records.
+2. Async/Await: Use modern async patterns for all IPC calls. Handlers return `{ ok, data }` or `{ ok: false, error }`.
+3. UUIDs: Generate `uuidv4()` in the backend for ALL new records. Never use slug/human-readable IDs.
 4. Transitions: Wrap multi-step DB writes in `db.transaction(() => { ... })()`.
+5. Categories: Assign products to **leaf** categories. Use `categories:getLeaves` or `resolveProductCategoryId()` — do not hardcode taxonomy in UI.
+6. Table rebuilds: If dropping columns, use `PRAGMA foreign_keys = OFF` inside a transaction (see v4 UUID migration pattern).
+7. Images: Store in `icon_data` BLOB; serve via IPC as data URLs. Validate file size (<5MB), MIME type (image/jpeg, image/png).
 
 📋 NEXT STEPS FOR AGENT
-1) Smoke-test in Electron: POS tree + checkout + thermal env on/off; Sales reprint/void; CSV import.
-2) Optional: stock distribution donut + audit trail UI.
-3) Document printer share naming for Windows in README (user request only).
+1) Implement v5 migration to add `categories.icon_data` BLOB column.
+2) Build `ImageUploader.jsx` component: drag-drop, preview, file validation.
+3) Add IPC handlers: `categories:uploadIcon`, `categories:deleteIcon`.
+4) Update CategoriesPage to use ImageUploader instead of EmojiPicker.
+5) Test upload → DB storage → retrieval → display across Admin/POS/Stock pages.
+6) Archive EmojiPicker component (keep for reference, not in use).
 
-You are now in Phase 4. All dummy data "safety nets" are gone—ensure database integrity at all times. 🚀
+You are in Phase 4 with DB v4 live. Ready to shift to image-based icons for better UX. 🚀
+

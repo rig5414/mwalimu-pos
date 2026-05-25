@@ -1,0 +1,427 @@
+# MWALIMU POS — FULL STACK AGENT BRIEF
+## Image-Based Category Icons Migration (v1.0.9 → v1.0.10)
+
+You are joining an active Electron POS project for **Mwalimu Uniforms** (school uniforms shop, Mombasa, Kenya).
+Your role is **full-stack engineer** — backend database, IPC handlers, AND frontend UI work together for this feature.
+
+**Decision Context:** We moved away from emoji-based category icons to actual product/item images for better visual merchandising and UX. You'll implement the complete image upload & storage system.
+
+---
+
+## YOUR MANDATE
+
+**DO focus on:**
+- Database v5 migration: Add `categories.icon_data` BLOB column
+- IPC handlers: `categories:uploadIcon`, `categories:deleteIcon`, serve images as data URLs
+- Frontend `ImageUploader.jsx` component: Drag-drop, preview, validation
+- Update CategoriesPage to use ImageUploader instead of EmojiPicker
+- Test end-to-end: Upload → DB storage → Retrieval → Display (Admin/POS/Stock)
+- Backward compatibility: Keep emoji fallback for categories without uploaded images
+
+**DO NOT touch unless explicitly asked:**
+- Product icon system (separate from categories)
+- Supabase sync (Phase 6)
+- Sales/reporting logic
+- Git commits/pushes (user will request)
+
+**Scope:** Category icons ONLY. This is a focused feature migration, not a broad refactor.
+
+---
+
+## ONBOARDING — READ IN THIS ORDER
+
+1. `@public/AI prompt Updates.txt` — latest status, icon migration context
+2. `@electron/db/migrate.js` — current v1–v4 schema; you'll add v5
+3. `@electron/ipc/handlers.js` — existing pattern for handlers
+4. `@electron/preload.js` — current IPC surface
+5. `@src/pages/admin/CategoriesPage.jsx` — currently uses EmojiPicker; you'll replace
+6. `@src/components/EmojiPicker.jsx` — being archived; review for reference only
+7. `@package.json` — dependencies
+
+**Confirm onboarding:** Version, DB user_version, migration version you'll create, and that you understand this is FULL-STACK work (both backend + frontend).
+
+---
+
+## PROJECT SNAPSHOT (2026-05-26)
+
+| Item | Value |
+|------|--------|
+| App | Mwalimu POS v1.0.9 |
+| Stack | Electron 29 + React 18 (renderer) + SQLite (better-sqlite3) |
+| Phase | 4 complete; moving to image-based icons |
+| DB file (dev) | `dev-data.db` (project root, migrates on Electron startup) |
+| DB version | **4 currently; will be 5 after your migration** |
+| Auth | PIN login — admin `9999`, shopkeeper `1234` |
+
+**Current icon system:**
+- `categories.icon` — TEXT column, stores emoji string (e.g., `"👔"`)
+- Categories page has EmojiPicker component (1,500+ emojis via @emoji-mart/data)
+- Images NOT yet supported
+
+**New icon system (your task):**
+- `categories.icon_data` — BLOB column, stores binary image (JPEG/PNG)
+- `categories.icon` — Keep as TEXT, fallback if no icon_data (backward compat)
+- ImageUploader component: Drag-drop, preview, file validation (max 5MB, JPEG/PNG only)
+- IPC handlers serialize images as data URLs for frontend display
+
+---
+
+## DATABASE MIGRATION (v5)
+
+**Migration file:** `electron/db/migrate.js`
+
+**What to add:**
+```sql
+-- v5: Add icon_data BLOB for category images
+ALTER TABLE categories ADD COLUMN icon_data BLOB;
+
+-- Keep icon TEXT for fallback emoji support
+-- ALTER TABLE categories ADD COLUMN icon TEXT; -- Already exists from v1-v4
+
+-- Index for icon_data (optional, for future queries)
+-- CREATE INDEX idx_categories_has_icon_data ON categories(id) WHERE icon_data IS NOT NULL;
+```
+
+**Migration pattern (match existing v1-v4 code):**
+1. Check if `icon_data` column already exists (idempotent)
+2. Add column if missing
+3. Re-read `user_version` after completion
+4. Log `console.log('✅ Database upgraded to v5')`
+
+**No data migration needed** — new column can be NULL; existing emoji `icon` values remain.
+
+---
+
+## IPC HANDLERS & PRELOAD
+
+### New Handlers (add to `electron/ipc/handlers.js`)
+
+**`categories:uploadIcon`** — Upload and store image
+```javascript
+{
+  method: 'POST',
+  input: {
+    category_id: UUID,
+    file: File object from frontend (will be converted to Buffer)
+  },
+  handler: async ({ category_id, file }) => {
+    // 1. Validate: File size (<5MB), MIME (image/jpeg, image/png)
+    // 2. Convert file to Buffer
+    // 3. INSERT or UPDATE categories.icon_data WHERE id = category_id
+    // 4. Return { ok: true, data: { category_id, size, mimeType } }
+    // 5. On error: { ok: false, error: "message" }
+  }
+}
+```
+
+**`categories:getIcon`** — Retrieve image as data URL
+```javascript
+{
+  method: 'GET',
+  input: {
+    category_id: UUID
+  },
+  handler: ({ category_id }) => {
+    // 1. SELECT icon_data FROM categories WHERE id = category_id
+    // 2. If icon_data is NULL: return { ok: true, data: null }
+    // 3. If icon_data exists:
+    //    - Detect MIME type from file header (first bytes: FFD8 = JPEG, 89 50 4E 47 = PNG)
+    //    - Convert Buffer to Base64
+    //    - Return data URL: `data:image/jpeg;base64,${base64}`
+    // 4. On error: { ok: false, error: "message" }
+  }
+}
+```
+
+**`categories:deleteIcon`** — Remove image, keep emoji fallback
+```javascript
+{
+  method: 'DELETE',
+  input: {
+    category_id: UUID
+  },
+  handler: ({ category_id }) => {
+    // 1. UPDATE categories SET icon_data = NULL WHERE id = category_id
+    // 2. Return { ok: true }
+    // 3. On error: { ok: false, error: "message" }
+  }
+}
+```
+
+### Preload Updates (`electron/preload.js`)
+
+Add to `window.api`:
+```javascript
+categories: {
+  // ... existing calls
+  uploadIcon: (payload) => ipcRenderer.invoke('categories:uploadIcon', payload),
+  getIcon: (payload) => ipcRenderer.invoke('categories:getIcon', payload),
+  deleteIcon: (payload) => ipcRenderer.invoke('categories:deleteIcon', payload),
+}
+```
+
+---
+
+## FRONTEND COMPONENT: ImageUploader
+
+**File:** `src/components/ImageUploader.jsx`
+
+**Props:**
+```javascript
+ImageUploader({
+  selectedImage,      // null | data URL string (preview)
+  categoryId,         // UUID
+  onUpload,           // callback(dataUrl) after successful upload
+  onDelete,           // callback() after successful delete
+  isLoading           // boolean
+})
+```
+
+**Features:**
+1. Drag-drop zone (visual feedback)
+2. File input (click to browse)
+3. Image preview (thumbnail)
+4. File validation: max 5MB, only JPEG/PNG
+5. Delete button (sets image to null, keeps emoji fallback)
+6. Loading state during upload
+7. Error toast on validation fail
+8. Tailwind styling matching current design
+
+**Validation rules:**
+- File size: < 5MB (toast if exceeded)
+- MIME type: image/jpeg or image/png only (toast if other format)
+- Show preview immediately after selection
+- Upload on file select (or provide manual "Upload" button)
+
+**UI flow:**
+1. Drag-drop zone (empty state)
+2. File selected → Show preview
+3. Upload starts → Show spinner
+4. Upload completes → Show "Delete" button next to preview
+5. User clicks Delete → Confirm → Send deleteIcon IPC → Reset to empty state
+
+---
+
+## CATEORIES PAGE UPDATE
+
+**File:** `src/pages/admin/CategoriesPage.jsx`
+
+**Current state:**
+- Imports EmojiPicker component
+- Form has `<EmojiPicker selectedEmoji={formData.icon} onSelect={...} />`
+
+**Changes needed:**
+1. Remove import of EmojiPicker
+2. Import ImageUploader
+3. Add state: `selectedImageData` (tracks preview during edit/create)
+4. Replace emoji picker form section with ImageUploader
+5. On form submit: Send both `icon` (emoji fallback) and image (if uploaded)
+
+**Form flow:**
+- New category: Show ImageUploader, upload optional
+- Edit category: Load existing image via `categories:getIcon`, show in ImageUploader
+- Delete category: No special cleanup (CASCADE or soft-delete handled by backend)
+
+**Integration:**
+- When user edits a category, fetch its existing image via `categories:getIcon` and populate ImageUploader preview
+- When user uploads a new image, store dataURL in `selectedImageData`, display preview
+- On form submit (`handleSubmit`), send to backend (image storage happens via IPC, not form data)
+
+---
+
+## DISPLAY ACROSS APP (Tree + POS + Stock)
+
+**Where icons are displayed:**
+1. Admin Categories page — tree nodes (already showing category.icon as emoji)
+2. POS page — folder cards (hierarchy browse)
+3. Stock page — folder cards (hierarchy browse)
+4. Dashboard — category summary (if applicable)
+
+**How to display:**
+- If category has `icon_data` (image): Render `<img src={dataUrl} />`
+- Else: Fall back to emoji string in `category.icon`
+- Handle loading state while fetching image
+
+**Implementation:**
+- Create a small utility hook: `useIconDisplay(categoryId, fallbackEmoji)`
+  - Fetches `categories:getIcon` on mount
+  - Returns: `{ imageUrl, isLoading, fallback }`
+- Use in tree node renderer: `<img src={imageUrl || fallback} />`
+
+**No breaking changes** — existing categories with emojis will still render correctly.
+
+---
+
+## BACKWARD COMPATIBILITY
+
+**Why it matters:**
+- Existing categories have emoji in `categories.icon`
+- New categories can have images in `icon_data`
+- Both systems coexist peacefully
+
+**Rules:**
+- Always check `icon_data` BLOB first
+- If NULL, use emoji string from `icon` TEXT column
+- If both NULL: Use default 📂 emoji
+- Never delete the emoji value, just leave it when image is uploaded
+
+**Display priority:**
+1. Image (from `icon_data` BLOB) — if exists
+2. Emoji (from `icon` TEXT) — if no image
+3. Default 📂 — if neither
+
+---
+
+## TESTING CHECKLIST
+
+**After implementation, verify:**
+
+1. **Migration:**
+   - [ ] `npm run dev` → Console shows `✅ Database upgraded to v5`
+   - [ ] `sqlite3 dev-data.db ".schema categories"` shows `icon_data BLOB` column
+   - [ ] Existing categories still display with emoji (no broken UI)
+
+2. **ImageUploader component:**
+   - [ ] Drag-drop zone visible in Categories form
+   - [ ] Can select file via file input
+   - [ ] Shows preview after selection
+   - [ ] Rejects files >5MB (toast error)
+   - [ ] Rejects non-image formats (toast error)
+   - [ ] Delete button works (clears preview)
+
+3. **IPC handlers:**
+   - [ ] `categories:uploadIcon` stores image in DB
+   - [ ] `categories:getIcon` retrieves and serves as data URL
+   - [ ] `categories:deleteIcon` clears icon_data
+   - [ ] Error handling (invalid category ID, malformed request, etc.)
+
+4. **CategoriesPage:**
+   - [ ] Create category with image → Image stores in DB → Displays in tree
+   - [ ] Edit category → Load existing image → Shows preview
+   - [ ] Delete image → Falls back to emoji
+   - [ ] Tree nodes display images (not emojis) when available
+
+5. **POS/Stock pages:**
+   - [ ] Folder icons display as images where available
+   - [ ] Emojis show as fallback for categories without images
+   - [ ] No lag when loading large categories
+
+6. **Backward compat:**
+   - [ ] Old categories (emoji-only) still render correctly
+   - [ ] No error if icon_data is NULL
+   - [ ] Mixed mode: some categories with images, some with emojis
+
+---
+
+## FILE CHECKLIST
+
+**Files you'll modify:**
+- [ ] `electron/db/migrate.js` — v5 migration (add icon_data BLOB)
+- [ ] `electron/ipc/handlers.js` — new handlers (uploadIcon, getIcon, deleteIcon)
+- [ ] `electron/preload.js` — expose new IPC calls
+- [ ] `src/pages/admin/CategoriesPage.jsx` — replace EmojiPicker with ImageUploader
+- [ ] `src/components/ImageUploader.jsx` — NEW component
+
+**Files to create:**
+- [ ] `src/components/ImageUploader.jsx` — image upload UI
+- [ ] (Optional) `src/hooks/useIconDisplay.js` — utility for icon display
+
+**Files to archive (keep, don't delete):**
+- [ ] `src/components/EmojiPicker.jsx` — no longer in use but keep for reference
+
+**Files NOT to touch:**
+- [ ] `src/lib/hierarchyNav.js`, `categoryTree.js` — no changes needed
+- [ ] `src/pages/admin/ProductsPage.jsx` — product icons are separate
+- [ ] `electron/db/categoryHelpers.js` — no changes needed
+
+---
+
+## CODING STANDARDS (BACKEND + FRONTEND)
+
+**Backend (Electron main process):**
+1. Use `better-sqlite3` for all DB operations
+2. Wrap multi-step operations in `db.transaction(() => { ... })()`
+3. Validate file input: size, MIME type
+4. Convert Buffer to Base64 for data URL — use Node.js `Buffer.from(data).toString('base64')`
+5. Friendly error messages (toastable)
+6. No hardcoded file paths; use Electron app paths if needed
+
+**Frontend (React):**
+1. Use `window.api.*` for all IPC calls (async/await)
+2. Show loading spinner during upload
+3. Validate file BEFORE sending to backend (UX best practice)
+4. Display data URLs directly in `<img src={...} />`
+5. No dummy data; all images from DB
+6. Use Tailwind for styling (match existing design)
+7. Handle errors gracefully (toast notifications)
+
+**Database:**
+1. Idempotent migration (safe to run repeatedly)
+2. Foreign keys ON (existing setting)
+3. PRAGMA user_version = 5 after migration
+4. No DEFAULT values for BLOB (let NULL be NULL)
+
+---
+
+## EDGE CASES & GOTCHAS
+
+1. **Large files:** BLOB storage in SQLite has soft limit ~1GB per database (not per cell), but we're limiting to 5MB per image. Should be fine for ~100 categories.
+
+2. **Data URL size:** Base64 encoding inflates data by ~33%. A 5MB image becomes ~6.7MB in data URL. Browser can handle this, but consider caching data URLs in Zustand if rendering many at once.
+
+3. **MIME detection:** Use file header bytes (magic numbers):
+   - JPEG: `FF D8 FF`
+   - PNG: `89 50 4E 47`
+   - If in doubt, ask user to re-upload in correct format
+
+4. **Concurrency:** If two admins upload icons simultaneously, SQLite locks will serialize writes (fine for small team).
+
+5. **Offline:** All images stored in local SQLite DB, works offline (no cloud sync in this phase).
+
+---
+
+## HOW TO WORK WITH THE OWNER
+
+1. **Ask nothing broad** — you have the full task spec here
+2. **After changes:** Describe what you did (migration version, new handlers, UI updates)
+3. **Before committing:** Get owner sign-off (they said "no commits unless asked")
+4. **Test manually** before declaring done:
+   - Upload an image → See it in tree
+   - Edit category → Image still there
+   - Delete icon → Falls back to emoji
+5. **Flag risks:** If any schema change breaks backward compat
+
+---
+
+## SUCCESS CRITERIA
+
+✅ **Done when:**
+- [ ] v5 migration applied, DB schema includes `icon_data` BLOB
+- [ ] IPC handlers work: upload, retrieve (as data URL), delete
+- [ ] ImageUploader component built and integrated
+- [ ] CategoriesPage uses ImageUploader instead of EmojiPicker
+- [ ] Upload → DB → Display works end-to-end
+- [ ] Backward compat: emoji fallback works for categories without images
+- [ ] All 5 test categories pass the verification checklist
+- [ ] No console errors when navigating Admin/POS/Stock pages
+
+---
+
+## COPY-PASTE STARTER (owner sends this + your task)
+
+```
+You are the Mwalimu POS Full Stack agent.
+Read @public/Full Stack Agent Prompt.txt fully before doing anything.
+
+Rules:
+- Full-stack work: Backend (DB + IPC) + Frontend (React components) together
+- Implement image-based category icons (migrate from emoji)
+- No product icons, no commits, no scope creep beyond category icons
+- Propose a short plan, wait for my OK on non-trivial work
+
+Today's task: Implement complete image upload system for category icons.
+```
+
+---
+
+**You are here to make category icons visual & real. Be precise, test thoroughly, keep backend/frontend in sync. 🚀**
