@@ -148,11 +148,11 @@ Output goes to `dist-electron/`.
 | Phase | Status | Description |
 |---|---|---|
 | 1 | ✅ Done | POS interface — full sales flow |
-| 2 | 🔜 Next | Dummy data expansion + barcode scanner |
-| 3 | ⏳ | SQLite wired up + IPC live |
-| 4 | ⏳ | UI/UX refinement, tablet optimization |
-| 5 | ⏳ | IMS — full inventory management |
-| 6 | ⏳ | Link POS ↔ IMS (live stock deduction) |
+| 2 | ✅ Done | Dummy data expansion + barcode scanner |
+| 3 | ✅ Done | SQLite wired up + IPC live |
+| 4 | ✅ Done | UI/UX refinement, tablet optimization |
+| 5 | ✅ Done | IMS — full inventory management |
+| 6 | 🔜 Next | Link POS ↔ IMS (live stock deduction) |
 | 7 | ⏳ | Cloud sync (Supabase backup) |
 | 8 | ⏳ | Reports + admin analytics |
 | 9 | ⏳ | Thermal printer integration |
