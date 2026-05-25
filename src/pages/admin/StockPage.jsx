@@ -4,6 +4,7 @@ import { computeBrowseState } from '../../lib/hierarchyNav'
 
 export default function StockPageAdmin() {
   const [stock, setStock]       = useState([])
+  const [catTree, setCatTree]   = useState(null)
   const [search, setSearch]     = useState('')
   const [modal, setModal]       = useState(null) // { type:'add'|'remove', item }
   const [qty, setQty]           = useState(10)
@@ -13,7 +14,13 @@ export default function StockPageAdmin() {
 
   useEffect(() => {
     if (!window.api) return
-    window.api.stock.getAll().then(res => { if (res.ok) setStock(res.data) })
+    Promise.all([
+      window.api.stock.getAll(),
+      window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false })
+    ]).then(([stockRes, catRes]) => {
+      if (stockRes.ok) setStock(stockRes.data)
+      if (catRes?.ok) setCatTree(catRes.data)
+    })
   }, [])
 
   const filtered = stock.filter(
@@ -24,7 +31,7 @@ export default function StockPageAdmin() {
       s.product_barcode?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search)
+  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search, catTree)
 
   const doStock = async () => {
     setSaving(true)

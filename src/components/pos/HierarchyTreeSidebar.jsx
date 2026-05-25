@@ -69,8 +69,8 @@ function TreeRows({ nodes, depth, collapsedNodes, toggleCollapsed, onSelect, act
 /**
  * Collapsible hierarchical picker ~20–25% width; syncs with `path` + `setPath` from POS/Stock.
  */
-export default function HierarchyTreeSidebar({ stock, path, setPath, collapsed, onToggleCollapse }) {
-  const tree = useMemo(() => buildHierarchyTree(stock), [stock])
+export default function HierarchyTreeSidebar({ stock, path, setPath, collapsed, onToggleCollapse, catTree }) {
+  const tree = useMemo(() => buildHierarchyTree(stock, catTree), [stock, catTree])
 
   const [collapsedNodes, setCollapsedNodes] = useState({})
 

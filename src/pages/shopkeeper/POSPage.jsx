@@ -16,6 +16,7 @@ import {
 
 export default function POSPage() {
   const [stock, setStock] = useState([])
+  const [catTree, setCatTree] = useState(null)
   const [path, setPath] = useState([])
   const [search, setSearch] = useState('')
   const [showPayment, setShowPayment] = useState(false)
@@ -44,8 +45,12 @@ export default function POSPage() {
   useEffect(() => {
     const load = async () => {
       if (window.api) {
-        const res = await window.api.stock.getAll()
-        if (res.ok) setStock(res.data)
+        const [stockRes, catRes] = await Promise.all([
+          window.api.stock.getAll(),
+          window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false })
+        ])
+        if (stockRes.ok) setStock(stockRes.data)
+        if (catRes.ok) setCatTree(catRes.data)
         await reloadFavorites()
       }
     }
@@ -60,7 +65,7 @@ export default function POSPage() {
       s.product_barcode?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search)
+  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search, catTree)
 
   const resolveBarcodeVariant = useCallback(
     (barcode) => stock.find((v) => barcodeMatchesVariant(v, barcode)),
@@ -184,6 +189,7 @@ export default function POSPage() {
         setPath={setPath}
         collapsed={treeCollapsed}
         onToggleCollapse={() => setTreeCollapsed((v) => !v)}
+        catTree={catTree}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">

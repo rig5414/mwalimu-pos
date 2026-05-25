@@ -1,28 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useToast } from '../../hooks/useToast'
+import { buildTreeFromFlat, flattenCategoryTree, optionLabel } from '../../lib/categoryTree'
 
 const BLANK_FORM = {
   name: '',
   category_id: '',
-  subcategory: '',
   school_id: '',
   cost_price: '',
   price: '',
   barcode: '',
   icon: '📦',
 }
-
-const CATEGORY_SUBCATEGORIES = {
-  'school-uniforms': ['Pullovers', 'Shirts', 'Trousers', 'Dresses', 'Windbreakers', 'Socks', 'Skirts', 'Marvins', 'Gloves'],
-  'games-attires': ['T-Shirts', 'Tracksuits', 'Games Shorts', 'Wrappers/Bloomers', 'Jersey', 'Girls Shorts'],
-  footwear: ['Toughees', 'Studeez', 'Semi-Toughees', 'Rubber Shoes', 'Slippers', 'Crocs', 'Bata Breathers'],
-  'inner-wear': ['Boxers', 'Panties', 'Vests', 'Sports Bra'],
-  beddings: ['Blankets', 'Bed Covers', 'Bedsheets', 'Pajamas', 'Nightdress', 'Towels'],
-  'school-bags': ['Backpacks', 'Duffel Bags', 'Lunch Bags'],
-  schools: ['Primary', 'Junior Secondary'],
-}
-
-const SCHOOL_ITEMS = ['Pullover', 'Half Sweater', 'Shirt', 'Dress', 'Girls Trouser', 'Long Trouser', 'Tracksuit', 'Socks', 'Tie', 'Marvin', 'Trouser', 'Tshirt', 'Girls Socks', 'Boys Socks']
 
 const IMPORT_FIELD_OPTIONS = [
   { value: '', label: '— Ignore —' },
@@ -89,20 +77,23 @@ export default function ProductsPage() {
   const [formData, setFormData]         = useState(BLANK_FORM)
   const [variants, setVariants]         = useState([])
   const [newVariant, setNewVariant]     = useState({ color: '', color_hex: '#1a3a5c', size: '', stock_qty: '' })
-  const [selectedSchoolItem, setSelectedSchoolItem] = useState('')
+  const [leafCategories, setLeafCategories] = useState([])
   const toast = useToast()
+
+  const schoolsRoot = useMemo(
+    () => categories.find((c) => !c.parent_id && c.name === 'Schools'),
+    [categories]
+  )
+  const schoolBadgeOptions = useMemo(
+    () => categories.filter((c) => c.parent_id === schoolsRoot?.id),
+    [categories, schoolsRoot]
+  )
 
   useEffect(() => {
     loadProducts()
     loadCategories()
   }, [])
 
-  useEffect(() => {
-    const validSubcats = CATEGORY_SUBCATEGORIES[formData.category_id] || []
-    if (formData.subcategory && !validSubcats.includes(formData.subcategory)) {
-      setFormData(prev => ({ ...prev, subcategory: '' }))
-    }
-  }, [formData.category_id, formData.subcategory])
 
   async function loadProducts() {
     try {
@@ -119,11 +110,24 @@ export default function ProductsPage() {
   async function loadCategories() {
     try {
       if (window.api) {
-        const res = await window.api.categories.getAll()
-        if (!res.ok) throw new Error(res.error)
-        if (res.data?.length) {
-          setCategories(res.data)
-          setFormData(prev => ({ ...prev, category_id: prev.category_id || res.data[0].id }))
+        const [allRes, leavesRes] = await Promise.all([
+          window.api.categories.getAll(),
+          window.api.categories.getLeaves?.() || window.api.categories.getAll(),
+        ])
+        if (!allRes.ok) throw new Error(allRes.error)
+        if (allRes.data?.length) {
+          setCategories(allRes.data)
+        }
+        if (leavesRes.ok && leavesRes.data?.length) {
+          setLeafCategories(leavesRes.data)
+          setFormData((prev) => ({
+            ...prev,
+            category_id: prev.category_id || leavesRes.data[0]?.id || '',
+          }))
+        } else if (allRes.data?.length) {
+          const tree = buildTreeFromFlat(allRes.data)
+          const leaves = flattenCategoryTree(tree, { leavesOnly: true })
+          setLeafCategories(leaves)
         }
       }
     } catch (_err) {
@@ -146,7 +150,6 @@ export default function ProductsPage() {
             id: editingId,
             name: formData.name.trim(),
             category_id: formData.category_id,
-            subcategory: formData.subcategory.trim(),
             school_id: formData.school_id || null,
             icon: formData.icon,
             cost_price: Number(formData.cost_price) || 0,
@@ -161,7 +164,6 @@ export default function ProductsPage() {
           const res = await window.api.products.create({
             name: formData.name.trim(),
             category_id: formData.category_id,
-            subcategory: formData.subcategory.trim(),
             school_id: formData.school_id || null,
             icon: formData.icon,
             cost_price: Number(formData.cost_price) || 0,
@@ -263,8 +265,7 @@ export default function ProductsPage() {
   async function editProduct(product) {
     setFormData({
       name: product.name || '',
-      category_id: product.category_id || categories[0]?.id || '',
-      subcategory: product.subcategory || '',
+      category_id: product.category_id || leafCategories[0]?.id || '',
       school_id: product.school_id || '',
       cost_price: product.cost_price ? String(product.cost_price) : '',
       price: String(product.price || ''),
@@ -295,16 +296,13 @@ export default function ProductsPage() {
   function resetForm() {
     setFormData({
       ...BLANK_FORM,
-      category_id: categories[0]?.id || '',
+      category_id: leafCategories[0]?.id || categories[0]?.id || '',
     })
     setVariants([])
     setNewVariant({ color: '', color_hex: '#1a3a5c', size: '', stock_qty: '' })
-    setSelectedSchoolItem('')
     setEditingId(null)
     setShowForm(false)
   }
-
-  const categorySubcategories = CATEGORY_SUBCATEGORIES[formData.category_id] || []
 
   function guessColumnMap(headers) {
     const initial = {}
@@ -346,7 +344,7 @@ export default function ProductsPage() {
   }
 
   async function runCsvImport() {
-    const defaultCat = categories[0]?.id
+    const defaultCat = leafCategories[0]?.id || categories[0]?.id
     if (!defaultCat) {
       toast.error('Load categories first')
       return
@@ -360,11 +358,21 @@ export default function ProductsPage() {
           o[field] = row[col]
         }
         let category_id = null
-        if (o.category) {
-          const match = categories.find(
-            (c) => c.name.toLowerCase() === String(o.category).trim().toLowerCase()
+        const subName = o.subcategory ? String(o.subcategory).trim().toLowerCase() : ''
+        const catName = o.category ? String(o.category).trim().toLowerCase() : ''
+        if (subName) {
+          const leaf = leafCategories.find(
+            (c) =>
+              c.name.toLowerCase() === subName ||
+              c.path_label?.toLowerCase().endsWith(subName)
           )
-          category_id = match?.id || null
+          category_id = leaf?.id || null
+        }
+        if (!category_id && catName) {
+          category_id =
+            leafCategories.find((c) => c.path?.[0]?.toLowerCase() === catName)?.id ||
+            categories.find((c) => c.name.toLowerCase() === catName)?.id ||
+            null
         }
         return {
           name: o.name ? String(o.name).trim() : '',
@@ -467,55 +475,18 @@ export default function ProductsPage() {
                 <select
                   className="input"
                   value={formData.category_id}
-                  onChange={e => setFormData({ ...formData, category_id: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                 >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option value="">Select category</option>
+                  {leafCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {optionLabel(cat)}
+                    </option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="label">Subcategory</label>
-                <select
-                  className="input"
-                  value={formData.subcategory}
-                  onChange={e => setFormData({ ...formData, subcategory: e.target.value })}
-                >
-                  <option value="">Select subcategory</option>
-                  {categorySubcategories.map(subcat => (
-                    <option key={subcat} value={subcat}>{subcat}</option>
-                  ))}
-                </select>
-                {formData.category_id === 'schools' && (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex gap-2">
-                      <select
-                        className="input text-sm"
-                        value={selectedSchoolItem}
-                        onChange={e => setSelectedSchoolItem(e.target.value)}
-                      >
-                        <option value="">Quick pick school item</option>
-                        {SCHOOL_ITEMS.map(item => (
-                          <option key={item} value={item}>{item}</option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        className="btn-secondary px-3 py-2 text-sm whitespace-nowrap"
-                        onClick={() => {
-                          if (!formData.subcategory || !selectedSchoolItem) return
-                          setFormData(prev => ({ ...prev, name: `${prev.subcategory} - ${selectedSchoolItem}` }))
-                        }}
-                      >
-                        Use
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Pick school + item to auto-fill Product Name.
-                    </p>
-                  </div>
-                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Pick a leaf category (e.g. School Uniforms › Pullovers). Add new ones under Categories.
+                </p>
               </div>
 
               <div>
@@ -523,16 +494,12 @@ export default function ProductsPage() {
                 <select
                   className="input"
                   value={formData.school_id}
-                  onChange={e => setFormData({ ...formData, school_id: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, school_id: e.target.value })}
                 >
                   <option value="">No Badge (Plain)</option>
-                  {categories.find(c => c.id === 'schools')?.id ? (
-                    <option value="lca-placeholder">Londiani Christian Academy</option> // Temporary until schools category is properly nested
-                  ) : null}
-                  <option value="school_lca">Londiani Christian Academy</option>
-                  <option value="school_lgc">Londiani Girls</option>
-                  <option value="school_baraka">Baraka Senior</option>
-                  <option value="school_sacred">Sacred Hills</option>
+                  {schoolBadgeOptions.map((school) => (
+                    <option key={school.id} value={school.id}>{school.name}</option>
+                  ))}
                 </select>
               </div>
 

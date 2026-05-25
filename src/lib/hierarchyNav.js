@@ -7,6 +7,7 @@ export const TOP_LEVEL_ORDER = [
   'Footwear',
   'Innerwear',
   'Beddings',
+  'School Bags',
   'Schools',
 ]
 
@@ -54,6 +55,18 @@ export const SCHOOL_BRANCH_ORDER = [
   'Township Senior',
   'Kimasian Senior',
   'Lelu',
+  'Chepseon Complex',
+  'Bethel',
+  'Bishop Ndingi',
+  'Kedowa Girls',
+  'Londiani Township',
+  'Finch',
+  'Baraka',
+  'Kapkondoo',
+  'Cheres',
+  'Kipsirichet',
+  'Kalyet',
+  'Kimasian Boys',
 ]
 
 export const LCA_PHASES = ['Primary', 'Junior Secondary']
@@ -71,7 +84,6 @@ export const PATH_DISPLAY_SHORT = {
 }
 
 const SUB_ALIASES = {
-  // Games Attires
   tshirts: 'T-Shirts',
   't-shirts': 'T-Shirts',
   tshirt: 'T-Shirts',
@@ -82,7 +94,6 @@ const SUB_ALIASES = {
   bloomers: 'Wrappers/Bloomers',
   jersey: 'Jersey',
   'girls shorts': 'Girls Shorts',
-  // Footwear
   'semi toughees': 'Semi-Toughees',
   'semi-toughees': 'Semi-Toughees',
   'rubber shoes': 'Rubber Shoes',
@@ -91,10 +102,8 @@ const SUB_ALIASES = {
   studeez: 'Studeez',
   toughees: 'Toughees',
   'bata breathers': 'Bata Breathers',
-  // Innerwear / legacy
   'inner wear': 'Innerwear',
   innerwear: 'Innerwear',
-  // School Uniforms
   windbreaker: 'Windbreakers',
   windbreakers: 'Windbreakers',
   marvin: 'Marvins',
@@ -113,7 +122,6 @@ const SUB_ALIASES = {
   socks: 'Socks',
   skirt: 'Skirts',
   skirts: 'Skirts',
-  // Beddings
   blanket: 'Blankets',
   blankets: 'Blankets',
   bedsheet: 'Bedsheets',
@@ -125,7 +133,6 @@ const SUB_ALIASES = {
   nightdress: 'Nightdress',
   'bed cover': 'Bed Covers',
   'bed covers': 'Bed Covers',
-  // LCA phases
   primary: 'Primary',
   'junior secondary': 'Junior Secondary',
   'junior-secondary': 'Junior Secondary',
@@ -137,9 +144,6 @@ export function normalizeCategoryName(name) {
   return name
 }
 
-/**
- * Canonical subcategory for a product row (non-Schools).
- */
 export function normalizeSubcategory(parentCat, raw) {
   const parent = normalizeCategoryName(parentCat)
   const allowed = SUBCATEGORIES_BY_PARENT[parent]
@@ -165,15 +169,34 @@ export function normalizeLcaPhase(raw) {
   return LCA_PHASES[0]
 }
 
-/**
- * Full navigation segments for a variant row: [folders..., productName].
- * Schools / LCA: [Schools, Londiani Christian Academy, Primary|Junior Secondary, productName]
- * Other schools: [Schools, SchoolName, productName]
- * Other categories: [Category, Subcategory, productName]
- */
 export function getNavSegments(row) {
-  const cat = normalizeCategoryName(row.category_name || 'Uncategorized')
   const product = row.product_name || 'Product'
+
+  if (Array.isArray(row.category_path) && row.category_path.length > 0) {
+    const path = row.category_path.map((p) => normalizeCategoryName(p))
+    const root = path[0]
+
+    if (root === 'Schools') {
+      const school = row.school_name || path[1] || 'Unknown School'
+      if (school === 'Londiani Christian Academy') {
+        const phase = path[2] ? normalizeLcaPhase(path[2]) : normalizeLcaPhase(row.subcategory)
+        return [root, school, phase, product]
+      }
+      return [root, school, product]
+    }
+
+    const attrs = row.attributes || {}
+    const badge = attrs.badge || (row.school_id ? 'badged' : 'plain')
+    const typeLabel = badge === 'badged' ? 'Badged' : 'Plain'
+
+    if (path.length >= 2) {
+      return [path[0], path[1], typeLabel, product]
+    }
+    const sub = normalizeSubcategory(path[0], row.subcategory)
+    return [path[0], sub, typeLabel, product]
+  }
+
+  const cat = normalizeCategoryName(row.category_name || row.root_category || 'Uncategorized')
 
   if (cat === 'Schools') {
     const school = row.school_name || 'Unknown School'
@@ -185,10 +208,12 @@ export function getNavSegments(row) {
   }
 
   const sub = normalizeSubcategory(cat, row.subcategory)
-  return [cat, sub, product]
+  const attrs = row.attributes || {}
+  const badge = attrs.badge || (row.school_id ? 'badged' : 'plain')
+  const typeLabel = badge === 'badged' ? 'Badged' : 'Plain'
+  return [cat, sub, typeLabel, product]
 }
 
-/** Folder segments only (for tree / breadcrumbs on cards). */
 export function getFolderSegments(row) {
   const full = getNavSegments(row)
   return full.slice(0, -1)
@@ -204,7 +229,6 @@ export function formatPathSegmentForDisplay(segment) {
   return PATH_DISPLAY_SHORT[segment] || segment
 }
 
-/** Subtle path line for product cards, e.g. "Schools › LCA › Primary" */
 export function getDisplayBreadcrumb(row) {
   return getFolderSegments(row).map(formatPathSegmentForDisplay).join(' › ')
 }
@@ -237,13 +261,61 @@ function sortKeysAtLevel(keys, parentPath) {
 }
 
 /**
- * Build sidebar tree: nested nodes { id, label, path, count, children? }
- * `label` uses short display where defined; `path` uses full segment strings for POS matching.
+ * Find a catTree node matching a given name path, returning the matching node (or undefined).
  */
-export function buildHierarchyTree(stock) {
+function findCatNode(tree, path) {
+  if (!path || path.length === 0 || !Array.isArray(tree)) return undefined
+  let nodes = tree
+  const normPath = path.map(normalizeCategoryName)
+  for (let i = 0; i < normPath.length; i++) {
+    const seg = normPath[i]
+    const found = nodes.find((n) => normalizeCategoryName(n.name) === seg)
+    if (!found) return undefined
+    // If this is the last segment, return the matched node
+    if (i === normPath.length - 1) return found
+    // Otherwise descend into children
+    if (found.children && found.children.length > 0) {
+      nodes = found.children
+    } else {
+      return undefined // path goes deeper than tree
+    }
+  }
+  return undefined
+}
+
+/**
+ * Build sidebar tree: nested nodes { id, label, path, count, children? }
+ * Accepts optional catTree to include empty folders.
+ */
+export function buildHierarchyTree(stock, catTree) {
+  if (catTree && Array.isArray(catTree)) {
+    const counts = new Map()
+    for (const row of stock || []) {
+      const segs = getNavSegments(row)
+      let key = ''
+      for (const s of segs.slice(0, -1)) {
+        key += '›' + s
+        counts.set(key, (counts.get(key) || 0) + 1)
+      }
+    }
+
+    function catNodeToTree(node) {
+      const pathKey = '›' + node.path.join('›')
+      return {
+        id: node.id,
+        label: formatPathSegmentForDisplay(node.name),
+        path: node.path,
+        count: counts.get(pathKey) || 0,
+        children: node.children?.length ? node.children.map(catNodeToTree) : undefined,
+      }
+    }
+
+    return catTree.map(catNodeToTree)
+  }
+
   if (!Array.isArray(stock) || stock.length === 0) return []
 
-  function walkInto(rootMap, segments, row) {
+  function walkInto(rootMap, segments) {
     let map = rootMap
     const pathSoFar = []
     for (let i = 0; i < segments.length; i++) {
@@ -269,11 +341,10 @@ export function buildHierarchyTree(stock) {
     }
   }
 
-
   const root = new Map()
   for (const row of stock) {
     const segments = getNavSegments(row)
-    walkInto(root, segments, row)
+    walkInto(root, segments)
   }
 
   function mapToNodes(m, parentPath) {
@@ -294,9 +365,6 @@ export function buildHierarchyTree(stock) {
   return mapToNodes(root, [])
 }
 
-/**
- * @deprecated Use getNavSegments / normalizeSubcategory instead. Kept for any stray imports.
- */
 export function getTypeFolder(item) {
   const cat = normalizeCategoryName(item.category_name || '')
   if (cat === 'Schools') return item.product_name
@@ -316,9 +384,61 @@ export function barcodeMatchesVariant(row, barcode) {
 }
 
 /**
- * POS / Stock folder browser: given current path, return folder cards or variants.
+ * Build folder list from catTree children merged with stock counts.
  */
-export function computeBrowseState(filteredStock, path, search) {
+function buildFoldersFromCatTree(catTree, path, filteredStock) {
+  // Get the category node at the current path
+  const node = findCatNode(catTree, path)
+  if (!node || !node.children || node.children.length === 0) {
+    return null
+  }
+
+  // Count stock items per child folder name
+  const stockCounts = new Map()
+  for (const item of filteredStock) {
+    const segs = getNavSegments(item)
+    const nextIdx = path.length
+    if (segs.length > nextIdx) {
+      const key = segs[nextIdx]
+      if (!stockCounts.has(key)) {
+        stockCounts.set(key, { total_qty: 0, itemsCount: 0, icon: item.icon })
+      }
+      const c = stockCounts.get(key)
+      c.total_qty += item.stock_qty || 0
+      c.itemsCount += 1
+      if (item.icon && !c.icon) c.icon = item.icon
+    }
+  }
+
+  const result = node.children.map((child) => {
+    const name = normalizeCategoryName(child.name)
+    const counts = stockCounts.get(name) || { total_qty: 0, itemsCount: 0 }
+    return {
+      id: name,
+      name,
+      type: 'folder',
+      icon: child.icon || counts.icon || '📁',
+      total_qty: counts.total_qty,
+      itemsCount: counts.itemsCount,
+    }
+  })
+
+  const nextPath = path
+  const sortedKeys = sortKeysAtLevel(result.map((f) => f.name), nextPath)
+  result.sort((a, b) => {
+    const ia = sortedKeys.indexOf(a.name)
+    const ib = sortedKeys.indexOf(b.name)
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+  })
+
+  return result
+}
+
+/**
+ * POS / Stock folder browser: given current path, return folder cards or variants.
+ * Accepts optional catTree for category-driven folder display.
+ */
+export function computeBrowseState(filteredStock, path, search, catTree) {
   if (search && String(search).trim()) {
     const q = String(search).toLowerCase()
     const rows = filteredStock.filter(
@@ -331,9 +451,48 @@ export function computeBrowseState(filteredStock, path, search) {
   }
 
   if (path.length === 0) {
+    if (catTree && Array.isArray(catTree)) {
+      const grouped = {}
+      for (const item of filteredStock) {
+        const key = normalizeCategoryName(
+          item.root_category || item.category_path?.[0] || item.category_name || 'Uncategorized'
+        )
+        if (!grouped[key]) {
+          grouped[key] = { id: key, name: key, type: 'category', icon: null, total_qty: 0, itemsCount: 0 }
+        }
+        grouped[key].total_qty += item.stock_qty || 0
+        grouped[key].itemsCount += 1
+      }
+      const result = []
+      for (const rootNode of catTree) {
+        const name = normalizeCategoryName(rootNode.name)
+        const existing = grouped[name]
+        result.push({
+          id: name,
+          name,
+          type: 'category',
+          icon: rootNode.icon || existing?.icon || '📁',
+          total_qty: existing?.total_qty || 0,
+          itemsCount: existing?.itemsCount || 0,
+        })
+        delete grouped[name]
+      }
+      for (const [name, g] of Object.entries(grouped)) {
+        result.push({ ...g, id: g.id || name })
+      }
+      result.sort((a, b) => {
+        const ia = TOP_LEVEL_ORDER.indexOf(a.name)
+        const ib = TOP_LEVEL_ORDER.indexOf(b.name)
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.name.localeCompare(b.name)
+      })
+      return { viewType: 'folders', currentLevelItems: result }
+    }
+
     const grouped = {}
     filteredStock.forEach((item) => {
-      const key = normalizeCategoryName(item.category_name || 'Uncategorized')
+      const key = normalizeCategoryName(
+        item.root_category || item.category_path?.[0] || item.category_name || 'Uncategorized'
+      )
       if (!grouped[key])
         grouped[key] = { id: key, name: key, type: 'category', icon: item.icon, total_qty: 0, itemsCount: 0 }
       grouped[key].total_qty += item.stock_qty || 0
@@ -343,15 +502,26 @@ export function computeBrowseState(filteredStock, path, search) {
     list.sort((a, b) => {
       const ia = TOP_LEVEL_ORDER.indexOf(a.name)
       const ib = TOP_LEVEL_ORDER.indexOf(b.name)
-      const va = ia === -1 ? 999 : ia
-      const vb = ib === -1 ? 999 : ib
-      return va - vb || a.name.localeCompare(b.name)
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.name.localeCompare(b.name)
     })
     return { viewType: 'folders', currentLevelItems: list }
   }
 
+  // Deeper levels
   const matched = filteredStock.filter((r) => rowMatchesPathPrefix(r, path))
-  if (!matched.length) return { viewType: 'folders', currentLevelItems: [] }
+  const hasVariantsAtPath = matched.length > 0
+
+  if (!hasVariantsAtPath && catTree) {
+    // No stock at this path — show catTree children as empty folders
+    const catFolders = buildFoldersFromCatTree(catTree, path, [])
+    if (catFolders) {
+      return { viewType: 'folders', currentLevelItems: catFolders }
+    }
+  }
+
+  if (!hasVariantsAtPath) {
+    return { viewType: 'folders', currentLevelItems: [] }
+  }
 
   const atFullProductPath = matched.every((r) => path.length === getNavSegments(r).length)
   if (atFullProductPath) {
@@ -390,15 +560,40 @@ export function computeBrowseState(filteredStock, path, search) {
     return { viewType: 'folders', currentLevelItems: folders }
   }
 
+  // Derive next-level folders from stock matches + catTree
   const nextKeys = [...new Set(matched.map((r) => getNavSegments(r)[nextIdx]).filter(Boolean))]
+
+  // If catTree is available, merge in any children that exist in the tree but have no stock
+  if (catTree) {
+    const catNode = findCatNode(catTree, path)
+    if (catNode && catNode.children) {
+      for (const child of catNode.children) {
+        const childName = normalizeCategoryName(child.name)
+        if (!nextKeys.includes(childName)) {
+          nextKeys.push(childName)
+        }
+      }
+    }
+  }
+
   const sortedKeys = sortKeysAtLevel(nextKeys, path)
+  // Build icon lookup from catTree children if available
+  const catChildIcons = new Map()
+  if (catTree) {
+    const catNode = findCatNode(catTree, path)
+    if (catNode && catNode.children) {
+      for (const child of catNode.children) {
+        catChildIcons.set(normalizeCategoryName(child.name), child.icon || '📁')
+      }
+    }
+  }
   const folders = sortedKeys.map((key) => {
     const rows = matched.filter((r) => getNavSegments(r)[nextIdx] === key)
     return {
       id: key,
       name: key,
       type: 'folder',
-      icon: rows[0]?.icon,
+      icon: rows[0]?.icon || catChildIcons.get(key) || '📁',
       total_qty: rows.reduce((s, x) => s + (x.stock_qty || 0), 0),
       itemsCount: rows.length,
     }

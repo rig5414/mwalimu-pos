@@ -4,6 +4,7 @@ import { computeBrowseState, barcodeMatchesVariant } from '../../lib/hierarchyNa
 
 export default function StockPageSK() {
   const [stock, setStock] = useState([])
+  const [catTree, setCatTree] = useState(null)
   const [search, setSearch] = useState('')
   const [addingTo, setAddingTo] = useState(null)
   const [qty, setQty] = useState(10)
@@ -29,8 +30,12 @@ export default function StockPageSK() {
   useEffect(() => {
     const load = async () => {
       if (window.api) {
-        const res = await window.api.stock.getAll()
-        if (res.ok) setStock(res.data)
+        const [stockRes, catRes] = await Promise.all([
+          window.api.stock.getAll(),
+          window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false })
+        ])
+        if (stockRes.ok) setStock(stockRes.data)
+        if (catRes?.ok) setCatTree(catRes.data)
         const c = await window.api.categories.getAll()
         if (c.ok && c.data?.length) {
           setCategories(c.data)
@@ -49,7 +54,7 @@ export default function StockPageSK() {
       s.product_barcode?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search)
+  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search, catTree)
 
   useEffect(() => {
     const onKey = async (e) => {
