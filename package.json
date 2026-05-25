@@ -16,6 +16,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
     "better-sqlite3": "^9.4.3",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",
