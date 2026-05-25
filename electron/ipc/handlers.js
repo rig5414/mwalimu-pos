@@ -5,10 +5,66 @@
 
 const crypto = require('crypto')
 const { v4: uuidv4 } = require('uuid')
+const {
+  inferCategoryType,
+  serializeVariantAttributes,
+  parseVariantAttributes,
+  getCategoryPathNames,
+  buildCategoryTreeRows,
+  flattenCategoryTree,
+  resolveProductCategoryId,
+} = require('../db/categoryHelpers')
 
 const hashPin = (pin) => crypto.createHash('sha256').update(pin).digest('hex')
 
 module.exports.register = function (ipcMain, db) {
+
+  const enrichStockRow = (row) => {
+    const category_path = getCategoryPathNames(db, row.category_id)
+    const root_category = category_path[0] || row.category_name
+    let attributes = parseVariantAttributes(row.attributes)
+    if (!attributes && row.school_id) attributes = { badge: 'badged' }
+    if (!attributes) attributes = { badge: 'plain' }
+    return {
+      ...row,
+      category_path,
+      root_category,
+      attributes,
+      subcategory: row.subcategory || category_path[category_path.length - 1] || null,
+    }
+  }
+
+  const syncProductSubcategory = (categoryId) => {
+    const path = getCategoryPathNames(db, categoryId)
+    return path.length > 1 ? path[path.length - 1] : path[0] || null
+  }
+
+  const normalizeProductCategory = (category_id, subcategory) => {
+    const resolvedId = resolveProductCategoryId(db, category_id, subcategory)
+    const sub = subcategory?.trim() || syncProductSubcategory(resolvedId)
+    return { category_id: resolvedId, subcategory: sub }
+  }
+
+  const insertVariants = (productId, variants, { school_id } = {}) => {
+    const insertVariant = db.prepare(`
+      INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty, attributes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    for (const v of variants || []) {
+      const badge = v.attributes?.badge || (school_id ? 'badged' : 'plain')
+      const attrs = serializeVariantAttributes(v.attributes || { badge })
+      insertVariant.run(
+        uuidv4(),
+        productId,
+        v.color || null,
+        v.color_hex || null,
+        v.size || null,
+        v.sku || null,
+        Number(v.stock_qty) || 0,
+        attrs
+      )
+    }
+  }
 
   // ── Helper ─────────────────────────────────────────────────────────────────
   const handle = (channel, fn) => {
@@ -22,6 +78,73 @@ module.exports.register = function (ipcMain, db) {
       }
     })
   }
+
+  // ── Browse tree (category-driven, shows empty folders) ────────────────────
+  handle('categories:getBrowseTree', () => {
+    const allCategories = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all()
+
+    const productCounts = new Map()
+    const stockTotals = new Map()
+    const products = db.prepare(`
+      SELECT p.category_id, COUNT(DISTINCT p.id) as p_cnt, COALESCE(SUM(pv.stock_qty), 0) as qty
+      FROM products p
+      LEFT JOIN product_variants pv ON pv.product_id = p.id
+      WHERE p.is_active = 1
+      GROUP BY p.category_id
+    `).all()
+    for (const p of products) {
+      productCounts.set(p.category_id, Number(p.p_cnt))
+      stockTotals.set(p.category_id, Number(p.qty))
+    }
+
+    const catMap = new Map()
+    for (const c of allCategories) {
+      catMap.set(c.id, { ...c, pCount: productCounts.get(c.id) || 0, qty: stockTotals.get(c.id) || 0 })
+    }
+
+    // Accumulate leaf counts upward to parents
+    for (const cat of allCategories) {
+      const pCount = productCounts.get(cat.id) || 0
+      const qty = stockTotals.get(cat.id) || 0
+      if (pCount === 0 && qty === 0) continue
+      let current = cat.parent_id ? catMap.get(cat.parent_id) : null
+      while (current) {
+        current.pCount += pCount
+        current.qty += qty
+        current = current.parent_id ? catMap.get(current.parent_id) : null
+      }
+    }
+
+    const byParent = new Map()
+    for (const c of allCategories) {
+      const key = c.parent_id || '__root__'
+      if (!byParent.has(key)) byParent.set(key, [])
+      byParent.get(key).push(c)
+    }
+    for (const list of byParent.values()) {
+      list.sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name))
+    }
+
+    function walk(parentKey, depth, pathNames) {
+      const nodes = byParent.get(parentKey) || []
+      return nodes.map((c) => {
+        const path = [...pathNames, c.name]
+        const children = walk(c.id, depth + 1, path)
+        const enriched = catMap.get(c.id) || c
+        return {
+          ...c,
+          depth,
+          path,
+          path_label: path.join(' › '),
+          is_leaf: children.length === 0,
+          product_count: enriched.pCount || 0,
+          total_qty: enriched.qty || 0,
+          children,
+        }
+      })
+    }
+    return walk('__root__', 0, [])
+  })
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   handle('auth:login', ({ username, pin, role }) => {
@@ -37,23 +160,62 @@ module.exports.register = function (ipcMain, db) {
 
   // ── Categories ─────────────────────────────────────────────────────────────
   handle('categories:getAll', () => {
-    return db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all()
+    const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all()
+    const prodCounts = db.prepare(`
+      SELECT category_id, COUNT(*) as cnt FROM products WHERE is_active = 1 GROUP BY category_id
+    `).all()
+    const countMap = new Map(prodCounts.map(p => [p.category_id, p.cnt]))
+    return rows.map((c) => ({
+      ...c,
+      path: getCategoryPathNames(db, c.id),
+      path_label: getCategoryPathNames(db, c.id).join(' › '),
+      product_count: countMap.get(c.id) || 0,
+    }))
   })
 
-  handle('categories:create', ({ name, parent_id, icon, sort_order }) => {
+  // Alias for AdminDevTools
+  handle('categories:list', () => {
+    const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all();
+    return rows.map((c) => ({
+      ...c,
+      path: getCategoryPathNames(db, c.id),
+      path_label: getCategoryPathNames(db, c.id).join(' › '),
+    }));
+  });
+
+  handle('categories:getTree', () => {
+    const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all()
+    return buildCategoryTreeRows(rows)
+  })
+
+  handle('categories:getLeaves', () => {
+    const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all()
+    const tree = buildCategoryTreeRows(rows)
+    return flattenCategoryTree(tree, { leavesOnly: true })
+  })
+
+  handle('categories:create', ({ name, parent_id, icon, sort_order, type }) => {
+    const parentRow = parent_id
+      ? db.prepare('SELECT * FROM categories WHERE id = ?').get(parent_id)
+      : null
     const id = uuidv4()
+    const resolvedType = type || inferCategoryType(parentRow)
     db.prepare(
-      'INSERT INTO categories (id, name, parent_id, icon, sort_order) VALUES (?,?,?,?,?)'
-    ).run(id, name, parent_id || null, icon || null, sort_order || 0)
+      'INSERT INTO categories (id, name, parent_id, icon, sort_order, type) VALUES (?,?,?,?,?,?)'
+    ).run(id, name, parent_id || null, icon || null, sort_order || 0, resolvedType)
     return { id }
   })
 
-  handle('categories:update', ({ id, name, parent_id, icon, sort_order }) => {
+  handle('categories:update', ({ id, name, parent_id, icon, sort_order, type }) => {
+    const parentRow = parent_id
+      ? db.prepare('SELECT * FROM categories WHERE id = ?').get(parent_id)
+      : null
+    const resolvedType = type || inferCategoryType(parentRow)
     db.prepare(`
       UPDATE categories
-      SET name = ?, parent_id = ?, icon = ?, sort_order = ?
+      SET name = ?, parent_id = ?, icon = ?, sort_order = ?, type = ?
       WHERE id = ?
-    `).run(name, parent_id || null, icon || null, sort_order || 0, id)
+    `).run(name, parent_id || null, icon || null, sort_order || 0, resolvedType, id)
     return { ok: true }
   })
 
@@ -61,13 +223,19 @@ module.exports.register = function (ipcMain, db) {
     const category = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(id)
     if (!category) throw new Error('Category not found')
 
+    const childCount = db.prepare(
+      'SELECT COUNT(*) as count FROM categories WHERE parent_id = ?'
+    ).get(id)
+    if (childCount.count > 0) {
+      throw new Error('Delete or reassign subcategories first')
+    }
+
     const productsInCategory = db.prepare(
       'SELECT COUNT(*) as count FROM products WHERE category_id = ?'
     ).get(id)
 
     let reassignedTo = null
     if (productsInCategory.count > 0) {
-      // Keep product records valid by reassigning to a stable fallback category.
       const uncategorized = db.prepare(
         'SELECT id FROM categories WHERE name = ? LIMIT 1'
       ).get('Uncategorized')
@@ -75,7 +243,7 @@ module.exports.register = function (ipcMain, db) {
       reassignedTo = uncategorized?.id || uuidv4()
       if (!uncategorized) {
         db.prepare(
-          'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)'
+          "INSERT INTO categories (id, name, icon, sort_order, type) VALUES (?, ?, ?, ?, 'root')"
         ).run(reassignedTo, 'Uncategorized', '📦', 9999)
       }
 
@@ -134,21 +302,15 @@ module.exports.register = function (ipcMain, db) {
 
   handle('products:create', ({ name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description, variants }) => {
     const id = uuidv4()
+    const { category_id: catId, subcategory: sub } = normalizeProductCategory(category_id, subcategory)
     try {
       db.prepare(`
         INSERT INTO products (id, name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, name, category_id, subcategory || null, school_id || null, icon || null, cost_price || 0, price, barcode || null, description || null)
+      `).run(id, name, catId, sub || null, school_id || null, icon || null, cost_price || 0, price, barcode || null, description || null)
 
-      // Insert variants
       if (variants && variants.length > 0) {
-        const insertVariant = db.prepare(`
-          INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
-        for (const v of variants) {
-          insertVariant.run(uuidv4(), id, v.color || null, v.color_hex || null, v.size || null, v.sku || null, v.stock_qty || 0)
-        }
+        insertVariants(id, variants, { school_id })
       }
       return { id }
     } catch (err) {
@@ -163,23 +325,18 @@ module.exports.register = function (ipcMain, db) {
     const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(id)
     if (!existing) throw new Error('Product not found')
 
+    const { category_id: catId, subcategory: sub } = normalizeProductCategory(category_id, subcategory)
+
     try {
       db.prepare(`
         UPDATE products
         SET name = ?, category_id = ?, subcategory = ?, school_id = ?, icon = ?, cost_price = ?, price = ?, barcode = ?, description = ?, is_active = ?, updated_at = datetime('now')
         WHERE id = ?
-      `).run(name, category_id || null, subcategory || null, school_id || null, icon || null, cost_price || 0, price, barcode || null, description || null, is_active ?? 1, id)
+      `).run(name, catId || null, sub || null, school_id || null, icon || null, cost_price || 0, price, barcode || null, description || null, is_active ?? 1, id)
 
-      // Update variants (destructive approach)
       if (Array.isArray(variants)) {
         db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(id)
-        const insertVariant = db.prepare(`
-          INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
-        for (const v of variants) {
-          insertVariant.run(uuidv4(), id, v.color || null, v.color_hex || null, v.size || null, v.sku || null, Number(v.stock_qty) || 0)
-        }
+        insertVariants(id, variants, { school_id })
       }
       return { ok: true }
     } catch (err) {
@@ -199,6 +356,85 @@ module.exports.register = function (ipcMain, db) {
     return { ok: true }
   })
 
+  // ── Variants (direct management) ───────────────────────────────────────────
+  handle('variants:list', (productId) => {
+    if (!productId) throw new Error('productId required');
+    const rows = db.prepare(`
+    SELECT pv.*, p.name as product_name
+    FROM product_variants pv
+    JOIN products p ON pv.product_id = p.id
+    WHERE pv.product_id = ?
+    ORDER BY pv.color, pv.size
+  `).all(productId);
+    return rows.map(v => ({
+      ...v,
+      attributes: parseVariantAttributes(v.attributes),
+    }));
+  });
+
+  handle('variants:create', ({ product_id, color, color_hex, size, sku, stock_qty, attributes }) => {
+    if (!product_id) throw new Error('product_id required');
+    const product = db.prepare('SELECT id, school_id FROM products WHERE id = ?').get(product_id);
+    if (!product) throw new Error('Product not found');
+
+    const id = uuidv4();
+    const finalSku = sku?.trim() || `${product_id.slice(0, 8)}-${color || ''}-${size || ''}`;
+    const badge = attributes?.badge || (product.school_id ? 'badged' : 'plain');
+    const attrs = serializeVariantAttributes(attributes || { badge });
+
+    try {
+      db.prepare(`
+      INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty, attributes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, product_id, color || null, color_hex || null, size || null, finalSku, stock_qty || 0, attrs);
+      return { id };
+    } catch (err) {
+      if (err.message.includes('UNIQUE constraint failed: product_variants.sku')) {
+        throw new Error(`SKU "${finalSku}" already exists`);
+      }
+      throw err;
+    }
+  });
+
+  handle('variants:update', ({ id, color, color_hex, size, sku, stock_qty, attributes }) => {
+    const existing = db.prepare('SELECT id FROM product_variants WHERE id = ?').get(id);
+    if (!existing) throw new Error('Variant not found');
+
+    const variantRow = db.prepare(`
+    SELECT pv.*, p.school_id FROM product_variants pv
+    JOIN products p ON pv.product_id = p.id
+    WHERE pv.id = ?
+  `).get(id);
+    const badge = attributes?.badge || (variantRow.school_id ? 'badged' : 'plain');
+    const attrs = serializeVariantAttributes(attributes || { badge });
+    const finalSku = sku?.trim() || variantRow.sku;
+
+    try {
+      db.prepare(`
+      UPDATE product_variants
+      SET color = ?, color_hex = ?, size = ?, sku = ?, stock_qty = ?, attributes = ?
+      WHERE id = ?
+    `).run(color || null, color_hex || null, size || null, finalSku, stock_qty || 0, attrs, id);
+      return { ok: true };
+    } catch (err) {
+      if (err.message.includes('UNIQUE constraint failed: product_variants.sku')) {
+        throw new Error(`SKU "${finalSku}" already exists`);
+      }
+      throw err;
+    }
+  });
+
+  handle('variants:delete', (id) => {
+    const variant = db.prepare('SELECT id FROM product_variants WHERE id = ?').get(id);
+    if (!variant) throw new Error('Variant not found');
+    const usedInSales = db.prepare('SELECT COUNT(*) as count FROM sale_items WHERE variant_id = ?').get(id);
+    if (usedInSales.count > 0) {
+      throw new Error('Cannot delete variant that has been sold. Consider marking product inactive instead.');
+    }
+    db.prepare('DELETE FROM product_variants WHERE id = ?').run(id);
+    return { ok: true };
+  });
+
   /** Bulk import: each row = { name, category_id, subcategory, school_id, price, cost_price, barcode, icon, description, color, size, sku, stock_qty } */
   handle('products:importMapped', ({ rows, default_category_id }) => {
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('No import rows')
@@ -212,6 +448,7 @@ module.exports.register = function (ipcMain, db) {
           if (!name) throw new Error('Missing name')
           const categoryId = r.category_id || default_category_id
           if (!categoryId) throw new Error('Missing category')
+          const { category_id: catId, subcategory: sub } = normalizeProductCategory(categoryId, r.subcategory)
           const price = Number(r.price)
           if (!Number.isFinite(price) || price < 0) throw new Error('Invalid price')
 
@@ -222,8 +459,8 @@ module.exports.register = function (ipcMain, db) {
           `).run(
             id,
             name,
-            categoryId,
-            r.subcategory || null,
+            catId,
+            sub || null,
             r.school_id || null,
             r.icon || '📦',
             Number(r.cost_price) || 0,
@@ -231,9 +468,10 @@ module.exports.register = function (ipcMain, db) {
             r.barcode ? String(r.barcode).trim() || null : null,
             r.description || null
           )
+          const badge = r.school_id ? 'badged' : 'plain'
           db.prepare(`
-            INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty)
-            VALUES (?,?,?,?,?,?,?)
+            INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty, attributes)
+            VALUES (?,?,?,?,?,?,?,?)
           `).run(
             uuidv4(),
             id,
@@ -241,7 +479,8 @@ module.exports.register = function (ipcMain, db) {
             r.color_hex || null,
             (r.size && String(r.size).trim()) || '—',
             r.sku ? String(r.sku).trim() || null : null,
-            Math.max(0, Number(r.stock_qty) || 0)
+            Math.max(0, Number(r.stock_qty) || 0),
+            serializeVariantAttributes({ badge })
           )
           summary.imported += 1
         } catch (err) {
@@ -256,7 +495,7 @@ module.exports.register = function (ipcMain, db) {
 
   // ── Stock ──────────────────────────────────────────────────────────────────
   handle('stock:getAll', () => {
-    return db.prepare(`
+    const rows = db.prepare(`
       SELECT pv.*,
              p.name as product_name,
              p.price,
@@ -273,6 +512,7 @@ module.exports.register = function (ipcMain, db) {
       LEFT JOIN categories sch ON p.school_id = sch.id
       ORDER BY p.name, pv.color, pv.size
     `).all()
+    return rows.map(enrichStockRow)
   })
 
   handle('stock:getLow', () => {
@@ -309,16 +549,33 @@ module.exports.register = function (ipcMain, db) {
     return { ok: true }
   })
 
+  handle('stock:adjust', ({ variant_id, quantity, note, user_id }) => {
+    if (quantity === 0) throw new Error('Quantity must be non-zero');
+    const isAdd = quantity > 0;
+    const type = isAdd ? 'in' : 'out';
+    const absQty = Math.abs(quantity);
+    if (!isAdd) {
+      const variant = db.prepare('SELECT stock_qty FROM product_variants WHERE id = ?').get(variant_id);
+      if (!variant) throw new Error('Variant not found');
+      if (variant.stock_qty < absQty) throw new Error('Insufficient stock');
+    }
+    db.prepare('UPDATE product_variants SET stock_qty = stock_qty + ? WHERE id = ?').run(quantity, variant_id);
+    db.prepare(`
+    INSERT INTO stock_movements (id, variant_id, type, quantity, note, user_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(uuidv4(), variant_id, type, absQty, note || null, user_id || null);
+    return { ok: true };
+  });
+
   // ── Sales ──────────────────────────────────────────────────────────────────
   handle('sales:create', ({ client_id, client_name, items, payment_method, amount_paid, mpesa_ref, card_ref, served_by }) => {
     const subtotal = items.reduce((sum, i) => sum + i.total_price, 0)
-    const tax = 0  // configure when needed
+    const tax = 0
     const total = subtotal + tax
     const change_given = payment_method === 'cash' ? Math.max(0, amount_paid - total) : 0
     const saleId = uuidv4()
     const receiptNo = generateReceiptNo(db)
 
-    // Use transaction — all or nothing
     const runSale = db.transaction(() => {
       db.prepare(`
         INSERT INTO sales (id, receipt_no, client_id, client_name, subtotal, tax, total,
@@ -472,7 +729,6 @@ module.exports.register = function (ipcMain, db) {
   })
 
   handle('users:delete', (id) => {
-    // Soft-delete: mark inactive so audit history is preserved
     const user = db.prepare('SELECT id FROM users WHERE id = ?').get(id)
     if (!user) throw new Error('User not found')
     db.prepare("UPDATE users SET is_active = 0, updated_at = datetime('now') WHERE id = ?").run(id)
@@ -542,15 +798,16 @@ module.exports.register = function (ipcMain, db) {
 
   // ── POS favorites (pinned variants) ────────────────────────────────────────
   handle('favorites:list', () => {
-    return db.prepare(`
+    const rows = db.prepare(`
       SELECT pv.*, p.name as product_name, p.price, p.icon, p.barcode as product_barcode,
-             p.subcategory, p.school_id, c.name as category_name, f.sort_order
+             p.subcategory, p.school_id, p.category_id, c.name as category_name, f.sort_order
       FROM pos_favorites f
       JOIN product_variants pv ON f.variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
       JOIN categories c ON p.category_id = c.id
       ORDER BY f.sort_order ASC, f.created_at ASC
     `).all()
+    return rows.map(enrichStockRow)
   })
 
   handle('favorites:add', ({ variant_id }) => {
@@ -580,7 +837,6 @@ module.exports.register = function (ipcMain, db) {
 
   // ── Sync ───────────────────────────────────────────────────────────────────
   handle('sync:online', () => {
-    // Simple connectivity check
     const https = require('https')
     return new Promise((resolve) => {
       https.get('https://8.8.8.8', () => resolve(true)).on('error', () => resolve(false))
@@ -611,7 +867,6 @@ function generateReceiptNo(db) {
 
   let receiptNo = 'MU-' + String(num).padStart(6, '0')
 
-  // Fail-safe: if this number already exists, keep incrementing until we find a gap
   while (db.prepare('SELECT id FROM sales WHERE receipt_no = ?').get(receiptNo)) {
     num++
     receiptNo = 'MU-' + String(num).padStart(6, '0')

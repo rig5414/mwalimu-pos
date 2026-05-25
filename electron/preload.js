@@ -33,10 +33,13 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   categories: {
-    getAll:  ()     => invoke('categories:getAll'),
-    create:  (data) => invoke('categories:create', data),
-    update:  (data) => invoke('categories:update', data),
-    delete:  (id)   => invoke('categories:delete', id),
+    getAll:      ()     => invoke('categories:getAll'),
+    getTree:     ()     => invoke('categories:getTree'),
+    getLeaves:   ()     => invoke('categories:getLeaves'),
+    getBrowseTree: ()   => invoke('categories:getBrowseTree'),
+    create:      (data) => invoke('categories:create', data),
+    update:      (data) => invoke('categories:update', data),
+    delete:      (id)   => invoke('categories:delete', id),
   },
 
   // ── Stock ─────────────────────────────────────────────────────────────────

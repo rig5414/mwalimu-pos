@@ -1,8 +1,15 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
-const { autoUpdater } = require('electron-updater')
+let autoUpdater = null
+try {
+  const { autoUpdater: au } = require('electron-updater')
+  autoUpdater = au
+} catch (e) {
+  // electron-updater fails in dev mode before app is ready
+  console.log('⚠️  electron-updater not available (dev mode)')
+}
 const path = require('path')
-// app.isPackaged is false when running `electron .` from source, true only for installed builds
-const isDev = !app.isPackaged
+// Detect dev mode: when running from source (not packaged) or with Vite dev server
+const isDev = process.env.NODE_ENV !== 'production' && !process.argv.some(arg => arg.includes('ASAR'))
 
 // ─── Database ───────────────────────────────────────────────────────────────
 let db
@@ -58,7 +65,7 @@ function createWindow() {
 
 // ─── Auto Updater ─────────────────────────────────────────────────────────────
 function setupAutoUpdater() {
-  if (isDev) return  // never run in dev
+  if (isDev || !autoUpdater) return  // never run in dev or if autoUpdater failed to load
 
   // Silent background check on startup
   autoUpdater.autoDownload = true        // download automatically once found
