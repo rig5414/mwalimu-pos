@@ -1,22 +1,130 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useToast } from '../../hooks/useToast'
+import { buildTreeFromFlat, flattenCategoryTree, optionLabel } from '../../lib/categoryTree'
+import EmojiPicker from '../../components/EmojiPicker'
 
-// Updated categories matching client's business structure
-const ICONS = ['👔', '🎒', '🩳', '👟', '🧢', '👕', '👖', '👗', '🧥', '🎀', '🏅', '🧦', '🍱', '🥋', '🧳', '🏃', '🛏️', '🏫']
+const TYPE_LABELS = {
+  root: 'Root',
+  subcategory: 'Subcategory',
+  school: 'School',
+  phase: 'Phase',
+  category: 'Category',
+}
+
+const TYPE_COLORS = {
+  root: 'bg-purple-100 text-purple-700',
+  subcategory: 'bg-blue-100 text-blue-700',
+  school: 'bg-green-100 text-green-700',
+  phase: 'bg-amber-100 text-amber-700',
+  category: 'bg-gray-100 text-gray-600',
+}
+
+function ConfirmDialog({ message, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(10,20,40,0.6)' }}
+         onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-modal">
+        <div className="text-3xl mb-3">⚠️</div>
+        <p className="text-gray-800 font-semibold mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 py-3 rounded-xl border-2 border-gray-200 font-semibold text-gray-600 cursor-pointer hover:border-gray-300">Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold cursor-pointer hover:bg-red-600">Delete</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CategoryTreeNode({ node, onEdit, onDelete, depth = 0 }) {
+  const [expanded, setExpanded] = useState(true)
+  const hasChildren = node.children && node.children.length > 0
+
+  return (
+    <div>
+      <div
+        className="group flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200 cursor-pointer"
+        style={{ marginLeft: depth * 20 }}
+      >
+        {/* Expand/collapse toggle */}
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className={`w-6 h-6 flex items-center justify-center rounded text-xs text-gray-400 hover:bg-gray-200 cursor-pointer flex-shrink-0 transition-transform ${hasChildren ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {expanded ? '▾' : '▸'}
+        </button>
+
+        {/* Indent line */}
+        {depth > 0 && <div className="w-4 h-px bg-gray-200 flex-shrink-0" />}
+
+        {/* Icon */}
+        <span className="text-2xl flex-shrink-0">{node.icon || '📁'}</span>
+
+        {/* Name + path */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-gray-900 text-sm truncate">{node.name}</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${TYPE_COLORS[node.type] || TYPE_COLORS.category}`}>
+              {TYPE_LABELS[node.type] || node.type || 'Category'}
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 truncate mt-0.5">{node.path_label || node.name}</p>
+        </div>
+
+        {/* Stock info */}
+        {node.product_count > 0 && (
+          <span className="text-xs text-gray-400 tabular-nums bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
+            {node.product_count} {node.product_count === 1 ? 'product' : 'products'}
+          </span>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onEdit(node)}
+            className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 cursor-pointer"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(node)}
+            className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg hover:bg-red-100 cursor-pointer"
+          >
+            Del
+          </button>
+        </div>
+      </div>
+
+      {/* Children */}
+      {hasChildren && expanded && (
+        <div className="border-l-2 border-gray-100 ml-6">
+          {node.children.map((child) => (
+            <CategoryTreeNode key={child.id} node={child} onEdit={onEdit} onDelete={onDelete} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    icon: '👔',
-    parent_id: '',
-  })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [formData, setFormData] = useState({ name: '', icon: '📂', parent_id: '' })
   const toast = useToast()
 
-  // Load categories
+  const categoryTree = useMemo(() => buildTreeFromFlat(categories), [categories])
+  const parentOptions = useMemo(
+    () => flattenCategoryTree(categoryTree, { excludeId: editingId }),
+    [categoryTree, editingId]
+  )
+
   useEffect(() => {
     loadCategories()
   }, [])
@@ -26,7 +134,7 @@ export default function CategoriesPage() {
       if (window.api) {
         const res = await window.api.categories.getAll()
         if (!res.ok) throw new Error(res.error)
-        setCategories(res.data)
+        setCategories(res.data || [])
       }
     } catch (err) {
       toast.error('Failed to load categories: ' + (err.message || 'Unknown error'))
@@ -35,7 +143,6 @@ export default function CategoriesPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-
     if (!formData.name.trim()) {
       toast.error('Please enter a category name')
       return
@@ -43,44 +150,22 @@ export default function CategoriesPage() {
 
     setSaving(true)
     try {
-      if (editingId) {
-        const index = categories.findIndex((c) => c.id === editingId)
-        if (window.api) {
-          const res = await window.api.categories.update({
-            id: editingId,
-            name: formData.name.trim(),
-            icon: formData.icon,
-            parent_id: formData.parent_id || null,
-            sort_order: index,
-          })
-          if (!res.ok) throw new Error(res.error)
-          await loadCategories()
-        } else {
-          setCategories(categories.map(c =>
-            c.id === editingId ? { ...c, ...formData } : c
-          ))
+      if (window.api) {
+        const payload = {
+          name: formData.name.trim(),
+          icon: formData.icon,
+          parent_id: formData.parent_id || null,
+          sort_order: editingId
+            ? categories.find((c) => c.id === editingId)?.sort_order || 0
+            : categories.length,
         }
-        toast.success(`Category "${formData.name}" updated`)
-      } else {
-        if (window.api) {
-          const res = await window.api.categories.create({
-            name: formData.name.trim(),
-            icon: formData.icon,
-            parent_id: formData.parent_id || null,
-            sort_order: categories.length,
-          })
-          if (!res.ok) throw new Error(res.error)
-          await loadCategories()
-        } else {
-          const newId = formData.name.toLowerCase().replace(/\s+/g, '-')
-          if (categories.some(c => c.id === newId)) {
-            toast.error('Category name already exists')
-            return
-          }
-          setCategories([...categories, { id: newId, ...formData }])
-        }
-        toast.success(`Category "${formData.name}" added`)
+        const res = editingId
+          ? await window.api.categories.update({ id: editingId, ...payload })
+          : await window.api.categories.create(payload)
+        if (!res.ok) throw new Error(res.error)
+        await loadCategories()
       }
+      toast.success(`Category "${formData.name}" ${editingId ? 'updated' : 'added'}`)
       resetForm()
     } catch (err) {
       toast.error(err.message || 'Failed to save category')
@@ -90,7 +175,7 @@ export default function CategoriesPage() {
   }
 
   async function deleteCategory(categoryId) {
-    const categoryName = categories.find(c => c.id === categoryId)?.name
+    const categoryName = categories.find((c) => c.id === categoryId)?.name
     try {
       if (window.api) {
         const res = await window.api.categories.delete(categoryId)
@@ -98,8 +183,8 @@ export default function CategoriesPage() {
         if (res.data?.reassigned_count > 0) {
           toast.warning(`${res.data.reassigned_count} products moved to Uncategorized`)
         }
+        await loadCategories()
       }
-      setCategories(categories.filter(c => c.id !== categoryId))
       toast.success(`Category "${categoryName}" deleted`)
     } catch (err) {
       toast.error(err.message || 'Failed to delete category')
@@ -109,7 +194,7 @@ export default function CategoriesPage() {
   function editCategory(category) {
     setFormData({
       name: category.name,
-      icon: category.icon,
+      icon: category.icon || '📂',
       parent_id: category.parent_id || '',
     })
     setEditingId(category.id)
@@ -117,189 +202,157 @@ export default function CategoriesPage() {
   }
 
   function resetForm() {
-    setFormData({
-      name: '',
-      icon: '👔',
-      parent_id: '',
-    })
+    setFormData({ name: '', icon: '📂', parent_id: '' })
     setEditingId(null)
     setShowForm(false)
   }
 
-  async function reorderCategories(fromIndex, toIndex) {
-    const newCategories = [...categories]
-    const [moved] = newCategories.splice(fromIndex, 1)
-    newCategories.splice(toIndex, 0, moved)
-    setCategories(newCategories)
-
-    if (window.api) {
-      try {
-        await Promise.all(
-          newCategories.map((category, index) =>
-            window.api.categories.update({
-              id: category.id,
-              name: category.name,
-              icon: category.icon,
-              parent_id: category.parent_id || null,
-              sort_order: index,
-            })
-          )
-        )
-      } catch (_err) {
-        toast.error('Failed to persist category order')
-      }
-    }
+  function confirmDelete(categoryId) {
+    setDeleteConfirm(categoryId)
   }
 
+  // Filter tree for search
+  const filteredTree = useMemo(() => {
+    if (!searchQuery.trim()) return categoryTree
+
+    function filterNodes(nodes) {
+      return nodes.reduce((acc, node) => {
+        const nameMatch = node.name.toLowerCase().includes(searchQuery.toLowerCase())
+        const children = node.children ? filterNodes(node.children) : []
+        if (nameMatch || children.length > 0) {
+          acc.push({ ...node, children: children.length > 0 ? children : node.children })
+        }
+        return acc
+      }, [])
+    }
+    return filterNodes(categoryTree)
+  }, [categoryTree, searchQuery])
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">📂 Categories</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Build a flexible tree: roots → subcategories → schools/phases. All IDs are UUIDs.
+          </p>
+        </div>
         {!showForm && (
-          <button onClick={() => setShowForm(true)} className="btn-primary">
-            + Add Category
+          <button type="button" onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2">
+            <span>+</span> Add Category
           </button>
         )}
       </div>
 
-      {showForm && (
-        <div className="card p-6 space-y-4">
-          <h2 className="text-lg font-bold">{editingId ? 'Edit Category' : 'New Category'}</h2>
+      {/* Body */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Tree panel */}
+        <div className="flex-1 flex flex-col overflow-hidden border-r border-gray-200">
+          {/* Search bar */}
+          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" strokeLinecap="round"/>
+              </svg>
+              <input
+                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary focus:bg-white transition-colors"
+                placeholder="Search categories…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          {/* Tree scrollable area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-1">
+            {filteredTree.length > 0 ? filteredTree.map((node) => (
+              <CategoryTreeNode
+                key={node.id}
+                node={node}
+                onEdit={editCategory}
+                onDelete={confirmDelete}
+              />
+            )) : (
+              <div className="text-center py-16">
+                <span className="text-5xl block mb-4">📂</span>
+                <p className="text-gray-400 text-sm">
+                  {searchQuery ? 'No categories match your search.' : 'No categories yet. Add a root category to get started.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Form panel */}
+        {showForm && (
+          <div className="w-[420px] flex-shrink-0 flex flex-col overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <h2 className="font-bold text-lg">{editingId ? 'Edit Category' : 'New Category'}</h2>
+              <button type="button" onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">✕</button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {/* Name */}
               <div>
-                <label className="label">Category Name *</label>
+                <label className="label text-sm font-semibold text-gray-700">Name *</label>
                 <input
                   type="text"
-                  className="input"
+                  className="input mt-1"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., School Uniforms"
+                  placeholder="e.g., Pullovers, Londiani Girls, Primary"
+                  autoFocus
                 />
               </div>
 
+              {/* Parent */}
               <div>
-                <label className="label">Parent Category (Optional)</label>
+                <label className="label text-sm font-semibold text-gray-700">Parent (optional)</label>
                 <select
-                  className="input"
+                  className="input mt-1"
                   value={formData.parent_id}
                   onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
                 >
-                  <option value="">None (Top Level)</option>
-                  {categories
-                    .filter(c => !c.parent_id && c.id !== editingId)
-                    .map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))
-                  }
+                  <option value="">None — top-level root</option>
+                  {parentOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {optionLabel(c, { showType: true })}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              <div className="col-span-2">
-                <label className="label">Icon</label>
-                <div className="flex gap-2 flex-wrap">
-                  {ICONS.map(icon => (
-                    <button
-                      key={icon}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, icon })}
-                      className={`w-10 h-10 text-xl flex items-center justify-center rounded-lg border-2 transition-all ${
-                        formData.icon === icon
-                          ? 'border-primary bg-primary-light'
-                          : 'border-gray-200 hover:border-gray-400'
-                      }`}
-                    >
-                      {icon}
-                    </button>
-                  ))}
-                </div>
+              {/* Icon picker */}
+              <div>
+                <label className="label text-sm font-semibold text-gray-700">Icon *</label>
+                <EmojiPicker
+                  selectedEmoji={formData.icon}
+                  onSelect={(emoji) => setFormData({ ...formData, icon: emoji })}
+                />
               </div>
-            </div>
 
-            <div className="flex gap-3 pt-4">
-              <button type="submit" className="btn-primary flex-1">
-                {saving ? 'Saving...' : `${editingId ? 'Update' : 'Create'} Category`}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="btn-secondary flex-1"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categories.map((category, index) => (
-          <div key={category.id} className="card p-4 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="text-4xl">{category.icon}</div>
-                <div>
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    {category.name}
-                    {category.parent_id && (
-                      <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase tracking-wider">Sub</span>
-                    )}
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    {category.parent_id 
-                      ? `Under: ${categories.find(c => c.id === category.parent_id)?.name || 'Unknown'}`
-                      : 'Top Level'
-                    }
-                  </p>
-                </div>
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4 sticky bottom-0 bg-white pb-2">
+                <button type="submit" className="btn-primary flex-1 flex items-center justify-center gap-2" disabled={saving}>
+                  {saving ? 'Saving...' : `${editingId ? 'Update' : 'Create'} Category`}
+                </button>
+                <button type="button" onClick={resetForm} className="btn-secondary flex-1">
+                  Cancel
+                </button>
               </div>
-            </div>
-
-            <div className="flex gap-2 mb-3">
-              {index > 0 && (
-                <button
-                  onClick={() => reorderCategories(index, index - 1)}
-                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                  title="Move up"
-                >
-                  ↑
-                </button>
-              )}
-              {index < categories.length - 1 && (
-                <button
-                  onClick={() => reorderCategories(index, index + 1)}
-                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                  title="Move down"
-                >
-                  ↓
-                </button>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => editCategory(category)}
-                className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors font-medium"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => deleteCategory(category.id)}
-                className="flex-1 px-3 py-2 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors font-medium"
-              >
-                Delete
-              </button>
-            </div>
+            </form>
           </div>
-        ))}
+        )}
       </div>
 
-      {categories.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-sm">No categories yet. Add one to get started.</p>
-        </div>
+      {/* Delete confirmation */}
+      {deleteConfirm && (
+        <ConfirmDialog
+          message={`Are you sure you want to delete "${categories.find((c) => c.id === deleteConfirm)?.name}"? Products will be reassigned to Uncategorized.`}
+          onConfirm={() => { deleteCategory(deleteConfirm); setDeleteConfirm(null) }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
       )}
     </div>
   )
