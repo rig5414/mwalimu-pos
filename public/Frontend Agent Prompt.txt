@@ -59,7 +59,7 @@ Confirm onboarding in your first message: app version, that UI runs in Electron 
 
 | Item | Value |
 |------|--------|
-| App | Mwalimu POS v1.0.9 |
+| App | Mwalimu POS v1.1.0 |
 | UI | React 18 + Vite + React Router v6 (HashRouter) + Tailwind v3 |
 | Shell | Electron 29 — **must test with `npm run dev`**, not Vite alone |
 | DB (via IPC) | SQLite v4 — UUID PKs, category tree, variant `attributes` |
@@ -125,10 +125,15 @@ Each variant row may include:
 - `attributes` — parsed object, e.g. `{ badge: 'plain' | 'badged' }`
 - `subcategory` — legacy text, still present; prefer `category_path` for display
 
-### POS hierarchy (5 levels)
-`hierarchyNav.js` builds: **Category → Subcategory → Plain/Badged → Product → Variant**
+### POS hierarchy (linear taxonomy — `src/lib/hierarchyNav.js`)
+**Standard categories:** `[Category → Subcategory → Product → Variant]`  
+**Schools / LCA:** `[Schools → Londiani Christian Academy → Primary | Junior Secondary → Product]`  
+**Other schools:** `[Schools → School name → Product]`
 
-Do not hardcode `CATEGORY_SUBCATEGORIES` maps in new code — read from API.
+- Browse logic: `computeBrowseState(filteredStock, path, search)`
+- Tree sidebar: `HierarchyTreeSidebar.jsx` — **branches default collapsed** (`expandedNodes` empty until user expands)
+- Breadcrumbs on cards: `getDisplayBreadcrumb(row)` (e.g. `Schools › LCA › Primary`)
+- Do not hardcode `CATEGORY_SUBCATEGORIES` in new POS code — taxonomy constants live in `hierarchyNav.js` (`SUBCATEGORIES_BY_PARENT`, `SCHOOL_BRANCH_ORDER`, etc.)
 
 ### Legacy column
 `products.subcategory` still exists in DB but is synced from leaf category — UI should use leaf `category_id` + path labels, not a separate subcategory field (Products page already updated).

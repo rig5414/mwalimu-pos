@@ -1,17 +1,37 @@
 /**
- * Realistic taxonomy + pricing seed for Mwalimu POS (SQLite).
+ * Additive taxonomy + sample product seed for Mwalimu POS (SQLite).
+ *
+ * DEFAULT (safe for production / client machines):
+ *   - Only INSERTS missing categories, schools, and sample products
+ *   - Never deletes or updates existing client rows (products, clients, sales, users, stock)
+ *
  * Run: npx electron seed_sample_data.js
  *
- * Aligns with Linear Category Taxonomy in src/lib/hierarchyNav.js
+ * DESTRUCTIVE reset (dev only — wipes products + variants + favorites):
+ *   set MWALIMU_SEED_RESET=1 && npx electron seed_sample_data.js
+ *   — or — npx electron seed_sample_data.js --reset
  */
 
 const Database = require('better-sqlite3')
 const path = require('path')
 const { v4: uuidv4 } = require('uuid')
 
+const args = process.argv.slice(2)
+const ALLOW_RESET =
+  process.env.MWALIMU_SEED_RESET === '1' ||
+  process.env.MWALIMU_SEED_RESET === 'true' ||
+  args.includes('--reset')
+
 const dbPath = path.join(__dirname, 'dev-data.db')
 const db = new Database(dbPath)
 db.pragma('foreign_keys = ON')
+
+const stats = {
+  categoriesInserted: 0,
+  schoolsInserted: 0,
+  productsInserted: 0,
+  productsSkipped: 0,
+}
 
 // ── Price bands (KES): [min, max] selling price; cost ≈ 70–75% random ────────
 const PRICE_BANDS = {
@@ -47,7 +67,6 @@ const PRICE_BANDS = {
   Pajamas: [800, 1800],
   Nightdress: [900, 2000],
   Towels: [400, 1200],
-  // Schools (badged / uniform lines)
   Primary: [900, 1600],
   'Junior Secondary': [1000, 1800],
   school_default: [700, 1500],
@@ -80,11 +99,8 @@ const SCHOOL_UNIFORM_SUBS = [
 ]
 
 const GAMES_SUBS = ['T-Shirts', 'Tracksuits', 'Games Shorts', 'Wrappers/Bloomers', 'Jersey', 'Girls Shorts']
-
 const FOOTWEAR_SUBS = ['Toughees', 'Studeez', 'Semi-Toughees', 'Rubber Shoes', 'Slippers', 'Crocs', 'Bata Breathers']
-
 const INNER_SUBS = ['Boxers', 'Panties', 'Vests', 'Sports Bra']
-
 const BEDDING_SUBS = ['Blankets', 'Bed Covers', 'Bedsheets', 'Pajamas', 'Nightdress', 'Towels']
 
 const SCHOOL_BRANCHES = [
@@ -100,6 +116,16 @@ const SCHOOL_BRANCHES = [
 
 const LCA_PHASES = ['Primary', 'Junior Secondary']
 
+/** Canonical root name → legacy aliases (migrate uses "Inner Wear", POS uses "Innerwear"). */
+const ROOT_ALIASES = {
+  'School Uniforms': ['School Uniforms', 'school-uniforms'],
+  'Games Attires': ['Games Attires', 'games-attires'],
+  Footwear: ['Footwear', 'footwear'],
+  Innerwear: ['Innerwear', 'Inner Wear', 'inner-wear', 'innerwear'],
+  Beddings: ['Beddings', 'beddings'],
+  Schools: ['Schools', 'schools'],
+}
+
 const TOP_CATEGORIES = [
   { id: 'school-uniforms', name: 'School Uniforms', icon: '👔', sort: 0 },
   { id: 'games-attires', name: 'Games Attires', icon: '🏃', sort: 1 },
@@ -109,29 +135,133 @@ const TOP_CATEGORIES = [
   { id: 'schools', name: 'Schools', icon: '🏫', sort: 5 },
 ]
 
-function ensureTopCategories() {
-  for (const c of TOP_CATEGORIES) {
-    const row = db.prepare('SELECT id FROM categories WHERE id = ? OR name = ?').get(c.id, c.name)
-    if (row) {
-      db.prepare('UPDATE categories SET name = ?, icon = ?, sort_order = ?, parent_id = NULL WHERE id = ?').run(
-        c.name,
-        c.icon,
-        c.sort,
-        row.id
-      )
-      continue
-    }
-    db.prepare(
-      'INSERT INTO categories (id, name, parent_id, icon, sort_order) VALUES (?,?,NULL,?,?)'
-    ).run(c.id, c.name, c.icon, c.sort)
-  }
-}
-
 function slugId(prefix, name) {
   const s = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
   return `${prefix}-${s}`.slice(0, 80)
 }
 
+function normalizeRootKey(name) {
+  const n = String(name || '').trim()
+  if (n === 'Inner Wear' || n === 'Innerwear') return 'Innerwear'
+  return n
+}
+
+/** Find existing root by canonical name or any alias (avoids duplicate Innerwear root). */
+function findExistingRoot(canonicalName) {
+  const aliases = ROOT_ALIASES[canonicalName] || [canonicalName]
+  for (const alias of aliases) {
+    const byId = db
+      .prepare('SELECT id, name FROM categories WHERE id = ? AND parent_id IS NULL')
+      .get(alias)
+    if (byId) return byId
+    const byName = db
+      .prepare('SELECT id, name FROM categories WHERE name = ? AND parent_id IS NULL')
+      .get(alias)
+    if (byName) return byName
+  }
+  return null
+}
+
+/** Remove seed-template products on a category (never touches client-named catalog). */
+function removeSeedTemplateProductsOnCategory(categoryId) {
+  const products = db
+    .prepare(
+      `SELECT id FROM products WHERE category_id = ?
+       AND (
+         name LIKE '% Pack'
+         OR name LIKE '% Standard'
+         OR name LIKE '% Premium'
+         OR name LIKE '% Sample%'
+         OR name LIKE '% — House Line'
+       )`
+    )
+    .all(categoryId)
+  let n = 0
+  for (const p of products) {
+    db.prepare(
+      'DELETE FROM pos_favorites WHERE variant_id IN (SELECT id FROM product_variants WHERE product_id = ?)'
+    ).run(p.id)
+    db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(p.id)
+    db.prepare('DELETE FROM products WHERE id = ?').run(p.id)
+    n += 1
+  }
+  return n
+}
+
+/**
+ * Fix duplicate Innerwear from earlier seed runs:
+ * - Remove misplaced categories named Innerwear/Inner Wear that are NOT roots
+ * - Remove extra root when canonical "Inner Wear" already exists
+ * Only removes seed-template products on those categories.
+ */
+function reconcileInnerwearDuplicates() {
+  const canonical = findExistingRoot('Innerwear')
+  if (!canonical) return { categoriesRemoved: 0, productsRemoved: 0 }
+
+  let categoriesRemoved = 0
+  let productsRemoved = 0
+
+  const misplaced = db
+    .prepare(
+      `SELECT id FROM categories
+       WHERE parent_id IS NOT NULL
+         AND trim(name) IN ('Innerwear', 'Inner Wear')`
+    )
+    .all()
+
+  for (const row of misplaced) {
+    productsRemoved += removeSeedTemplateProductsOnCategory(row.id)
+    const prods = db.prepare('SELECT COUNT(*) as c FROM products WHERE category_id = ?').get(row.id).c
+    const kids = db.prepare('SELECT COUNT(*) as c FROM categories WHERE parent_id = ?').get(row.id).c
+    if (prods === 0 && kids === 0) {
+      db.prepare('DELETE FROM categories WHERE id = ?').run(row.id)
+      categoriesRemoved += 1
+    }
+  }
+
+  const roots = db
+    .prepare(
+      `SELECT id, name FROM categories
+       WHERE parent_id IS NULL AND trim(name) IN ('Innerwear', 'Inner Wear')`
+    )
+    .all()
+
+  for (const dup of roots) {
+    if (dup.id === canonical.id) continue
+    productsRemoved += removeSeedTemplateProductsOnCategory(dup.id)
+    const prods = db.prepare('SELECT COUNT(*) as c FROM products WHERE category_id = ?').get(dup.id).c
+    const kids = db.prepare('SELECT COUNT(*) as c FROM categories WHERE parent_id = ?').get(dup.id).c
+    if (prods === 0 && kids === 0) {
+      db.prepare('DELETE FROM categories WHERE id = ?').run(dup.id)
+      categoriesRemoved += 1
+    }
+  }
+
+  return { categoriesRemoved, productsRemoved }
+}
+
+/** Insert top-level category only if missing — never UPDATE existing client rows. */
+function ensureTopCategories() {
+  for (const c of TOP_CATEGORIES) {
+    if (findExistingRoot(c.name)) continue
+    db.prepare(
+      'INSERT INTO categories (id, name, parent_id, icon, sort_order) VALUES (?,?,NULL,?,?)'
+    ).run(c.id, c.name, c.icon, c.sort)
+    stats.categoriesInserted += 1
+  }
+}
+
+/** Map canonical root names → category id (merges Inner Wear + Innerwear). */
+function buildCanonicalCatMap() {
+  const map = {}
+  for (const row of db.prepare('SELECT id, name FROM categories WHERE parent_id IS NULL').all()) {
+    const key = normalizeRootKey(row.name)
+    if (!map[key]) map[key] = row.id
+  }
+  return map
+}
+
+/** Insert school child category only if missing. */
 function ensureSchoolChildren(parentId) {
   const ids = {}
   let sort = 0
@@ -139,33 +269,60 @@ function ensureSchoolChildren(parentId) {
     const id = slugId('sch', name)
     const ex = db.prepare('SELECT id FROM categories WHERE id = ? OR name = ?').get(id, name)
     if (ex) {
-      db.prepare('UPDATE categories SET parent_id = ?, sort_order = ? WHERE id = ?').run(parentId, sort, ex.id)
       ids[name] = ex.id
     } else {
       db.prepare(
         'INSERT INTO categories (id, name, parent_id, icon, sort_order) VALUES (?,?,?,?,?)'
       ).run(id, name, parentId, '🎓', sort)
       ids[name] = id
+      stats.schoolsInserted += 1
     }
     sort += 1
   }
   return ids
 }
 
-function clearProducts() {
-  try {
-    db.pragma('foreign_keys = OFF')
-    db.exec('DELETE FROM pos_favorites')
-    db.exec('DELETE FROM product_variants')
-    db.exec('DELETE FROM products')
-    db.pragma('foreign_keys = ON')
-    console.log('Cleared products, variants, and POS favorites.')
-  } catch (e) {
-    console.warn('Partial clear:', e.message)
-  }
+function clearProductsDevOnly() {
+  console.warn('⚠️  MWALIMU_SEED_RESET: deleting products, variants, and pos_favorites (DEV ONLY)')
+  db.pragma('foreign_keys = OFF')
+  db.exec('DELETE FROM pos_favorites')
+  db.exec('DELETE FROM product_variants')
+  db.exec('DELETE FROM products')
+  db.pragma('foreign_keys = ON')
 }
 
-function insertProduct({ name, category_id, subcategory, school_id, icon, price, cost, variants }) {
+function productExists({ name, category_id, subcategory, school_id }) {
+  const row = db
+    .prepare(
+      `SELECT id FROM products
+       WHERE name = ? AND category_id = ?
+         AND IFNULL(subcategory,'') = IFNULL(?, '')
+         AND IFNULL(school_id,'') = IFNULL(?, '')`
+    )
+    .get(name, category_id, subcategory || null, school_id || null)
+  return Boolean(row)
+}
+
+function variantSkuExists(sku) {
+  if (!sku) return false
+  return Boolean(db.prepare('SELECT 1 FROM product_variants WHERE sku = ?').get(sku))
+}
+
+function insertProductIfMissing({ name, category_id, subcategory, school_id, icon, price, cost, variants }) {
+  if (productExists({ name, category_id, subcategory, school_id })) {
+    stats.productsSkipped += 1
+    return false
+  }
+
+  const planned = variants.map((v) => ({
+    ...v,
+    sku: v.sku || `${slugId('sku', name)}-${v.size}`.slice(0, 40),
+  }))
+  if (planned.every((v) => variantSkuExists(v.sku))) {
+    stats.productsSkipped += 1
+    return false
+  }
+
   const pid = uuidv4()
   db.prepare(
     `INSERT INTO products (id, name, category_id, subcategory, school_id, icon, cost_price, price, is_active)
@@ -175,17 +332,27 @@ function insertProduct({ name, category_id, subcategory, school_id, icon, price,
   const insV = db.prepare(
     `INSERT INTO product_variants (id, product_id, color, color_hex, size, sku, stock_qty) VALUES (?,?,?,?,?,?,?)`
   )
-  for (const v of variants) {
+  let insertedVariants = 0
+  for (const v of planned) {
+    if (variantSkuExists(v.sku)) continue
     insV.run(
       uuidv4(),
       pid,
       v.color || null,
       v.color_hex || null,
       v.size,
-      v.sku || `${slugId('sku', name)}-${v.size}`.slice(0, 40),
+      v.sku,
       v.stock_qty != null ? v.stock_qty : randBetween(8, 80)
     )
+    insertedVariants += 1
   }
+  if (insertedVariants === 0) {
+    db.prepare('DELETE FROM products WHERE id = ?').run(pid)
+    stats.productsSkipped += 1
+    return false
+  }
+  stats.productsInserted += 1
+  return true
 }
 
 function seedUniformsAndGeneral(catMap) {
@@ -193,9 +360,8 @@ function seedUniformsAndGeneral(catMap) {
   for (const sub of SCHOOL_UNIFORM_SUBS) {
     const price = sellingPrice(sub)
     const cost = costFromPrice(price)
-    const base = `${sub.slice(0, -1)} Sample`
-    insertProduct({
-      name: `${base} (${sub})`,
+    insertProductIfMissing({
+      name: `${sub.slice(0, -1)} Sample (${sub})`,
       category_id: cid,
       subcategory: sub,
       icon: '👔',
@@ -213,7 +379,7 @@ function seedUniformsAndGeneral(catMap) {
   for (const sub of GAMES_SUBS) {
     const price = sellingPrice(sub)
     const cost = costFromPrice(price)
-    insertProduct({
+    insertProductIfMissing({
       name: `${sub} — House Line`,
       category_id: g,
       subcategory: sub,
@@ -228,11 +394,11 @@ function seedUniformsAndGeneral(catMap) {
     })
   }
 
-  const f = catMap['Footwear']
+  const f = catMap.Footwear
   for (const sub of FOOTWEAR_SUBS) {
     const price = sellingPrice(sub)
     const cost = costFromPrice(price)
-    insertProduct({
+    insertProductIfMissing({
       name: `${sub} Standard`,
       category_id: f,
       subcategory: sub,
@@ -247,11 +413,13 @@ function seedUniformsAndGeneral(catMap) {
     })
   }
 
-  const inn = catMap['Innerwear']
-  for (const sub of INNER_SUBS) {
+  const inn = catMap.Innerwear
+  if (!inn) {
+    console.warn('  ⚠ Skipping Innerwear products — no root category (Inner Wear / Innerwear)')
+  } else for (const sub of INNER_SUBS) {
     const price = sellingPrice(sub)
     const cost = costFromPrice(price)
-    insertProduct({
+    insertProductIfMissing({
       name: `${sub} Pack`,
       category_id: inn,
       subcategory: sub,
@@ -266,11 +434,11 @@ function seedUniformsAndGeneral(catMap) {
     })
   }
 
-  const b = catMap['Beddings']
+  const b = catMap.Beddings
   for (const sub of BEDDING_SUBS) {
     const price = sellingPrice(sub)
     const cost = costFromPrice(price)
-    insertProduct({
+    insertProductIfMissing({
       name: `${sub} Premium`,
       category_id: b,
       subcategory: sub,
@@ -292,7 +460,7 @@ function seedSchools(catMap, schoolIds) {
   for (const phase of LCA_PHASES) {
     const price = sellingPrice(phase)
     const cost = costFromPrice(price)
-    insertProduct({
+    insertProductIfMissing({
       name: `LCA ${phase} Pullover`,
       category_id: schoolsCid,
       subcategory: phase,
@@ -308,7 +476,7 @@ function seedSchools(catMap, schoolIds) {
     })
     const p2 = sellingPrice(phase)
     const c2 = costFromPrice(p2)
-    insertProduct({
+    insertProductIfMissing({
       name: `LCA ${phase} White Shirt`,
       category_id: schoolsCid,
       subcategory: phase,
@@ -328,7 +496,7 @@ function seedSchools(catMap, schoolIds) {
     const sid = schoolIds[schoolName]
     const price = sellingPrice('school_default')
     const cost = costFromPrice(price)
-    insertProduct({
+    insertProductIfMissing({
       name: `${schoolName} Pullover`,
       category_id: schoolsCid,
       subcategory: 'Pullovers',
@@ -343,7 +511,7 @@ function seedSchools(catMap, schoolIds) {
     })
     const p2 = sellingPrice('Shirts')
     const c2 = costFromPrice(p2)
-    insertProduct({
+    insertProductIfMissing({
       name: `${schoolName} Shirt`,
       category_id: schoolsCid,
       subcategory: 'Shirts',
@@ -359,20 +527,27 @@ function seedSchools(catMap, schoolIds) {
   }
 }
 
-console.log('Mwalimu POS — taxonomy + pricing seed')
+console.log('Mwalimu POS — additive taxonomy seed')
 console.log('Database:', dbPath)
+console.log('Mode:', ALLOW_RESET ? 'RESET (destructive)' : 'ADDITIVE (safe — no deletes)')
+
+if (ALLOW_RESET) clearProductsDevOnly()
+
+const innerFix = reconcileInnerwearDuplicates()
+if (innerFix.categoriesRemoved || innerFix.productsRemoved) {
+  console.log(
+    `  Reconciled Innerwear duplicates: ${innerFix.categoriesRemoved} categor(ies), ${innerFix.productsRemoved} seed product(s) removed`
+  )
+}
 
 ensureTopCategories()
 const schoolsRow = db.prepare("SELECT id FROM categories WHERE id = 'schools' OR name = 'Schools' LIMIT 1").get()
-if (!schoolsRow) throw new Error('Schools category missing — open the app once to run migrations, then re-run seed.')
+if (!schoolsRow) {
+  throw new Error('Schools category missing — open the app once to run migrations, then re-run seed.')
+}
 const schoolIds = ensureSchoolChildren(schoolsRow.id)
 
-const catMap = {}
-for (const row of db.prepare('SELECT id, name FROM categories WHERE parent_id IS NULL').all()) {
-  catMap[row.name] = row.id
-}
-
-clearProducts()
+const catMap = buildCanonicalCatMap()
 
 const run = db.transaction(() => {
   seedUniformsAndGeneral(catMap)
@@ -383,5 +558,15 @@ run()
 
 const { c: pc } = db.prepare('SELECT COUNT(*) as c FROM products').get()
 const { c: vc } = db.prepare('SELECT COUNT(*) as c FROM product_variants').get()
-console.log(`Done. Products: ${pc}, variants: ${vc}.`)
-console.log('Open the app — POS tree should show Schools → LCA → Primary / Junior Secondary, etc.')
+const { c: cc } = db.prepare('SELECT COUNT(*) as c FROM clients').get()
+const { c: sc } = db.prepare('SELECT COUNT(*) as c FROM sales').get()
+
+console.log('── Summary ──')
+console.log(`Categories added: ${stats.categoriesInserted}`)
+console.log(`Schools added:    ${stats.schoolsInserted}`)
+console.log(`Products added:   ${stats.productsInserted}`)
+console.log(`Products skipped: ${stats.productsSkipped} (already exist)`)
+console.log(`DB totals: ${pc} products, ${vc} variants, ${cc} clients, ${sc} sales (unchanged by seed)`)
+if (!ALLOW_RESET) {
+  console.log('Client data preserved. To wipe catalog in dev only: MWALIMU_SEED_RESET=1 npx electron seed_sample_data.js')
+}

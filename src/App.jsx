@@ -12,7 +12,6 @@ import StockPageAdmin from './pages/admin/StockPage'
 import UsersPage from './pages/admin/UsersPage'
 import ProductsPage from './pages/admin/ProductsPage'
 import CategoriesPage from './pages/admin/CategoriesPage'
-import AdminDevTools from './pages/admin/AdminDevTools'
 
 // Route guard
 function Require({ role, children }) {
@@ -43,7 +42,6 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="stock" element={<StockPageAdmin />} />
-        <Route path="/admin/dev-tools" element={<AdminDevTools />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="categories" element={<CategoriesPage />} />

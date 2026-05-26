@@ -218,6 +218,18 @@ module.exports = function migrate(db) {
     console.log('✅ Database upgraded to v5 (complete category taxonomy and sample products)')
   }
 
+  if (version < 6) {
+    const runV6 = db.transaction(() => {
+      if (!columnExists('categories', 'icon_data')) {
+        db.exec('ALTER TABLE categories ADD COLUMN icon_data BLOB')
+      }
+    })
+    runV6()
+    db.exec('PRAGMA user_version = 6')
+    version = 6
+    console.log('✅ Database upgraded to v6 (add category icon_data BLOB)')
+  }
+
   const { v4: uuidv4 } = require('uuid')
   const crypto = require('crypto')
   const hashPin = (pin) => crypto.createHash('sha256').update(pin).digest('hex')

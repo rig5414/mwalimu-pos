@@ -418,6 +418,7 @@ function buildFoldersFromCatTree(catTree, path, filteredStock) {
       name,
       type: 'folder',
       icon: child.icon || counts.icon || '📁',
+      categoryId: child.id,
       total_qty: counts.total_qty,
       itemsCount: counts.itemsCount,
     }
@@ -472,6 +473,7 @@ export function computeBrowseState(filteredStock, path, search, catTree) {
           name,
           type: 'category',
           icon: rootNode.icon || existing?.icon || '📁',
+          categoryId: rootNode.id,
           total_qty: existing?.total_qty || 0,
           itemsCount: existing?.itemsCount || 0,
         })
@@ -589,11 +591,13 @@ export function computeBrowseState(filteredStock, path, search, catTree) {
   }
   const folders = sortedKeys.map((key) => {
     const rows = matched.filter((r) => getNavSegments(r)[nextIdx] === key)
+    const folderNode = catTree ? findCatNode(catTree, [...path, key]) : null
     return {
       id: key,
       name: key,
       type: 'folder',
       icon: rows[0]?.icon || catChildIcons.get(key) || '📁',
+      categoryId: folderNode?.id || null,
       total_qty: rows.reduce((s, x) => s + (x.stock_qty || 0), 0),
       itemsCount: rows.length,
     }

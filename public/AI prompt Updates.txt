@@ -1,9 +1,9 @@
 📊 PROJECT STATUS
-Current Version: v1.0.9
+Current Version: v1.1.0
 Current Phase: Phase 4 (UI/UX Refinement & Hardware) — MAJOR ITEMS COMPLETE · DB restructure (v3/v4) DONE · Moving to image-based category icons
 Repository: https://github.com/rig5414/mwalimu-pos
 Download Page: https://rig5414.github.io/mwalimu-pos/public/download.html
-Last Updated: 2026-05-26
+Last Updated: 2026-05-26 (taxonomy alignment + production-safe seed + sidebar UX)
 Database Version: PRAGMA user_version = 4
 
 ✅ COMPLETED (Phase 1-3)
@@ -14,6 +14,26 @@ Database Version: PRAGMA user_version = 4
 
 ✅ COMPLETED (DB Restructure — 2026-05-24)
 [Previous DB Restructure items - unchanged...]
+
+✅ COMPLETED (Taxonomy & POS polish — 2026-05-26)
+Linear Category Taxonomy (`src/lib/hierarchyNav.js`)
+✅ Strict paths: School Uniforms / Games / Footwear / Innerwear / Beddings → subcategory → product
+✅ Schools branch: LCA → Primary | Junior Secondary; other schools → school name → product
+✅ `buildHierarchyTree`, `computeBrowseState`, `getDisplayBreadcrumb`, `getNavSegments`
+✅ Realistic price bands in `seed_sample_data.js` (cost ≈ 70–75% of sell price)
+
+POS / Sidebar UX
+✅ Hierarchy sidebar: **default collapsed** (`HierarchyTreeSidebar.jsx` — `expandedNodes` empty until user expands)
+✅ Variant cards show full subdivision breadcrumb (e.g. Schools › LCA › Primary)
+✅ Shopkeeper + admin stock pages use shared `computeBrowseState`
+
+Production data safety
+✅ `seed_sample_data.js` — **additive by default** (no DELETE/UPDATE of client rows)
+✅ Skips existing products (match name + category + subcategory + school)
+✅ Never touches clients, sales, users, stock_movements
+✅ Dev-only catalog wipe: `MWALIMU_SEED_RESET=1` or `--reset` flag only
+
+Handoff docs updated: `HANDOFF_SUMMARY.txt`, Backend/Frontend/Full Stack agent prompts
 
 🔄 IN PROGRESS (Category Icon Migration — 2026-05-26)
 DECISION: Switch from emoji-based category icons to actual product/item images.
@@ -109,7 +129,7 @@ mwalimu-pos/
 │   │   ├── EmojiPicker.jsx      # DEPRECATED/ARCHIVED
 │   │   └── ImageUploader.jsx    # NEW: for category icon upload
 │   └── components/admin/        # Admin-specific components
-├── seed_sample_data.js          # Legacy bulk seed script (prefer migrate seed for fresh installs)
+├── seed_sample_data.js          # Additive catalog seed (SAFE default); MWALIMU_SEED_RESET=1 for dev wipe only
 └── public/
     ├── AI prompt Updates.txt      # Living project status (read first)
     ├── Backend Agent Prompt.txt   # Onboarding brief for backend/DB-focused agents
@@ -126,7 +146,8 @@ mwalimu-pos/
 - GitHub Actions: Native module (better-sqlite3) compilation fails in CI; manual builds required.
 - Icon Selection: Now migrating from emoji to image upload.
 - Sales-by-category chart groups by leaf category name (e.g. "Pullovers") not root — may want root rollup later.
-- `seed_sample_data.js` / CSV scripts may still reference legacy slug IDs; use admin UI or migrate-aware import for new data.
+- `seed_sample_data.js` is additive-only — do not add unconditional DELETE without `MWALIMU_SEED_RESET` guard.
+- CSV scripts may still need UUID alignment; use admin UI or migrate-aware import for new data.
 
 📝 CODING STANDARDS
 1. No Dummy Data: All production pages MUST use `window.api`. Fallbacks are for browser dev mode ONLY.
@@ -138,12 +159,14 @@ mwalimu-pos/
 7. Images: Store in `icon_data` BLOB; serve via IPC as data URLs. Validate file size (<5MB), MIME type (image/jpeg, image/png).
 
 📋 NEXT STEPS FOR AGENT
-1) Implement v5 migration to add `categories.icon_data` BLOB column.
-2) Build `ImageUploader.jsx` component: drag-drop, preview, file validation.
-3) Add IPC handlers: `categories:uploadIcon`, `categories:deleteIcon`.
-4) Update CategoriesPage to use ImageUploader instead of EmojiPicker.
-5) Test upload → DB storage → retrieval → display across Admin/POS/Stock pages.
-6) Archive EmojiPicker component (keep for reference, not in use).
+1) Read `@public/HANDOFF_SUMMARY.txt` first, then the role brief matching your task.
+2) Image icons (optional): v5 `icon_data` BLOB + ImageUploader + IPC — see Full Stack Agent Prompt.
+3) Phase 5: stock audit trail UI, configurable low-stock thresholds.
+4) Never run destructive seed on client/production DB without explicit owner approval.
 
-You are in Phase 4 with DB v4 live. Ready to shift to image-based icons for better UX. 🚀
+**Seed commands:**
+- Safe: `npx electron seed_sample_data.js`
+- Dev wipe catalog only: `MWALIMU_SEED_RESET=1 npx electron seed_sample_data.js`
+
+You are in Phase 4 with DB v4 live, linear taxonomy shipped, production-safe seeding enforced. 🚀
 

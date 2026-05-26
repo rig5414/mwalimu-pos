@@ -1,7 +1,28 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useToast } from '../../hooks/useToast'
 import { buildTreeFromFlat, flattenCategoryTree, optionLabel } from '../../lib/categoryTree'
-import EmojiPicker from '../../components/EmojiPicker'
+import ImageUploader from '../../components/ImageUploader'
+import { useIconDisplay, updateIconCache } from '../../hooks/useIconDisplay'
+
+function CategoryIcon({ categoryId, fallbackEmoji, className = "text-2xl" }) {
+  const { imageUrl, isLoading, fallback } = useIconDisplay(categoryId, fallbackEmoji)
+
+  if (isLoading) {
+    return <span className={`w-8 h-8 rounded-lg bg-gray-100 animate-pulse flex-shrink-0`} />
+  }
+
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className="w-8 h-8 object-cover rounded-lg flex-shrink-0"
+      />
+    )
+  }
+
+  return <span className={`flex-shrink-0 ${className}`}>{fallback}</span>
+}
 
 const TYPE_LABELS = {
   root: 'Root',
@@ -58,7 +79,7 @@ function CategoryTreeNode({ node, onEdit, onDelete, depth = 0 }) {
         {depth > 0 && <div className="w-4 h-px bg-gray-200 flex-shrink-0" />}
 
         {/* Icon */}
-        <span className="text-2xl flex-shrink-0">{node.icon || '📁'}</span>
+        <CategoryIcon categoryId={node.id} fallbackEmoji={node.icon} />
 
         {/* Name + path */}
         <div className="min-w-0 flex-1">
@@ -117,6 +138,9 @@ export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [formData, setFormData] = useState({ name: '', icon: '📂', parent_id: '' })
+  const [selectedImageData, setSelectedImageData] = useState(null)
+  const [pendingFile, setPendingFile] = useState(null)
+  const [uploadingIcon, setUploadingIcon] = useState(false)
   const toast = useToast()
 
   const categoryTree = useMemo(() => buildTreeFromFlat(categories), [categories])
@@ -159,10 +183,37 @@ export default function CategoriesPage() {
             ? categories.find((c) => c.id === editingId)?.sort_order || 0
             : categories.length,
         }
+        
         const res = editingId
           ? await window.api.categories.update({ id: editingId, ...payload })
           : await window.api.categories.create(payload)
+        
         if (!res.ok) throw new Error(res.error)
+
+        const targetId = editingId || res.id || res.data?.id
+        
+        if (!editingId && pendingFile && targetId) {
+          setUploadingIcon(true)
+          const buffer = await pendingFile.arrayBuffer()
+          const data = new Uint8Array(buffer)
+          const uploadRes = await window.api.categories.uploadIcon({
+            category_id: targetId,
+            file: {
+              name: pendingFile.name,
+              size: pendingFile.size,
+              type: pendingFile.type,
+              data: data
+            }
+          })
+          if (!uploadRes.ok) {
+            toast.warning('Category created, but icon upload failed: ' + uploadRes.error)
+          } else {
+            if (selectedImageData) {
+              updateIconCache(targetId, selectedImageData)
+            }
+          }
+        }
+        
         await loadCategories()
       }
       toast.success(`Category "${formData.name}" ${editingId ? 'updated' : 'added'}`)
@@ -171,6 +222,7 @@ export default function CategoriesPage() {
       toast.error(err.message || 'Failed to save category')
     } finally {
       setSaving(false)
+      setUploadingIcon(false)
     }
   }
 
@@ -191,7 +243,7 @@ export default function CategoriesPage() {
     }
   }
 
-  function editCategory(category) {
+  async function editCategory(category) {
     setFormData({
       name: category.name,
       icon: category.icon || '📂',
@@ -199,10 +251,88 @@ export default function CategoriesPage() {
     })
     setEditingId(category.id)
     setShowForm(true)
+
+    setUploadingIcon(true)
+    try {
+      if (window.api?.categories?.getIcon) {
+        const res = await window.api.categories.getIcon({ category_id: category.id })
+        if (res && res.ok && res.data) {
+          setSelectedImageData(res.data)
+        } else {
+          setSelectedImageData(null)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load category icon:', err)
+      setSelectedImageData(null)
+    } finally {
+      setUploadingIcon(false)
+    }
+  }
+
+  async function handleUpload(file) {
+    if (editingId) {
+      setUploadingIcon(true)
+      try {
+        const buffer = await file.arrayBuffer()
+        const data = new Uint8Array(buffer)
+        const res = await window.api.categories.uploadIcon({
+          category_id: editingId,
+          file: {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            data: data
+          }
+        })
+        if (!res.ok) throw new Error(res.error)
+        
+        const reader = new FileReader()
+        reader.onload = () => {
+          setSelectedImageData(reader.result)
+          updateIconCache(editingId, reader.result)
+        }
+        reader.readAsDataURL(file)
+        toast.success('Category icon uploaded successfully')
+      } catch (err) {
+        toast.error('Failed to upload category icon: ' + err.message)
+      } finally {
+        setUploadingIcon(false)
+      }
+    } else {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setSelectedImageData(reader.result)
+      }
+      reader.readAsDataURL(file)
+      setPendingFile(file)
+    }
+  }
+
+  async function handleDelete() {
+    if (editingId) {
+      setUploadingIcon(true)
+      try {
+        const res = await window.api.categories.deleteIcon({ category_id: editingId })
+        if (!res.ok) throw new Error(res.error)
+        setSelectedImageData(null)
+        updateIconCache(editingId, null)
+        toast.success('Category icon deleted')
+      } catch (err) {
+        toast.error('Failed to delete category icon: ' + err.message)
+      } finally {
+        setUploadingIcon(false)
+      }
+    } else {
+      setSelectedImageData(null)
+      setPendingFile(null)
+    }
   }
 
   function resetForm() {
     setFormData({ name: '', icon: '📂', parent_id: '' })
+    setSelectedImageData(null)
+    setPendingFile(null)
     setEditingId(null)
     setShowForm(false)
   }
@@ -323,12 +453,15 @@ export default function CategoriesPage() {
                 </select>
               </div>
 
-              {/* Icon picker */}
+              {/* Icon picker / Image Uploader */}
               <div>
-                <label className="label text-sm font-semibold text-gray-700">Icon *</label>
-                <EmojiPicker
-                  selectedEmoji={formData.icon}
-                  onSelect={(emoji) => setFormData({ ...formData, icon: emoji })}
+                <label className="label text-sm font-semibold text-gray-700 mb-1.5 block">Category Icon</label>
+                <ImageUploader
+                  selectedImage={selectedImageData}
+                  categoryId={editingId}
+                  onUpload={handleUpload}
+                  onDelete={handleDelete}
+                  isLoading={uploadingIcon}
                 />
               </div>
 

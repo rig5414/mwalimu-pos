@@ -1,51 +1,85 @@
 import { useState, useMemo } from 'react'
 import { buildHierarchyTree } from '../../lib/hierarchyNav'
+import { posTheme } from '../../styles/posTheme'
 
-function TreeRows({ nodes, depth, collapsedNodes, toggleCollapsed, onSelect, activePath }) {
+function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activePath }) {
   if (!nodes?.length) return null
   return (
-    <ul className={depth === 0 ? 'space-y-0.5' : 'mt-0.5 space-y-0.5 border-l border-gray-200 ml-2 pl-2'}>
+    <ul
+      style={{
+        listStyle: 'none',
+        margin: 0,
+        padding: 0,
+        ...(depth > 0
+          ? {
+              marginTop: '2px',
+              borderLeft: `1px solid ${posTheme.panelBorder}`,
+              marginLeft: '10px',
+              paddingLeft: '8px',
+            }
+          : {}),
+      }}
+    >
       {nodes.map((node) => {
         const hasKids = node.children && node.children.length > 0
         const key = node.id
-        const open = !collapsedNodes[key]
+        const open = Boolean(expandedNodes[key])
         const isActive =
           activePath.length === node.path.length &&
           node.path.every((seg, i) => seg === activePath[i])
 
         return (
-          <li key={key}>
-            <div className="flex items-stretch min-h-[44px] rounded-lg overflow-hidden">
+          <li key={key} style={{ marginBottom: '2px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'stretch',
+                minHeight: '40px',
+                borderRadius: '10px',
+                overflow: 'hidden',
+              }}
+            >
               {hasKids ? (
                 <button
                   type="button"
                   aria-label={open ? 'Collapse' : 'Expand'}
                   onClick={(e) => {
                     e.stopPropagation()
-                    toggleCollapsed(key)
+                    toggleExpanded(key)
                   }}
-                  className="w-10 flex-shrink-0 flex items-center justify-center text-gray-400 hover:bg-gray-100
-                             border-0 bg-transparent cursor-pointer text-sm"
+                  style={ts.expandBtn}
                 >
                   {open ? '▾' : '▸'}
                 </button>
               ) : (
-                <span className="w-10 flex-shrink-0" />
+                <span style={{ width: '32px', flexShrink: 0 }} />
               )}
               <button
                 type="button"
                 onClick={() => onSelect(node.path)}
-                className={`flex-1 text-left px-2 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer
-                  ${isActive ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                style={{
+                  ...ts.nodeBtn,
+                  ...(isActive ? ts.nodeBtnActive : ts.nodeBtnIdle),
+                }}
+                className="tree-node-btn"
               >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate">{node.label}</span>
-                  <span
-                    className={`flex-shrink-0 text-xs font-bold tabular-nums rounded-full px-2 py-0.5
-                      ${isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}
-                  >
-                    {node.count}
-                  </span>
+                <span
+                  style={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {node.label}
+                </span>
+                <span
+                  style={{
+                    ...ts.countBadge,
+                    ...(isActive ? ts.countBadgeActive : ts.countBadgeIdle),
+                  }}
+                >
+                  {node.count}
                 </span>
               </button>
             </div>
@@ -53,8 +87,8 @@ function TreeRows({ nodes, depth, collapsedNodes, toggleCollapsed, onSelect, act
               <TreeRows
                 nodes={node.children}
                 depth={depth + 1}
-                collapsedNodes={collapsedNodes}
-                toggleCollapsed={toggleCollapsed}
+                expandedNodes={expandedNodes}
+                toggleExpanded={toggleExpanded}
                 onSelect={onSelect}
                 activePath={activePath}
               />
@@ -66,16 +100,20 @@ function TreeRows({ nodes, depth, collapsedNodes, toggleCollapsed, onSelect, act
   )
 }
 
-/**
- * Collapsible hierarchical picker ~20–25% width; syncs with `path` + `setPath` from POS/Stock.
- */
-export default function HierarchyTreeSidebar({ stock, path, setPath, collapsed, onToggleCollapse, catTree }) {
+export default function HierarchyTreeSidebar({
+  stock,
+  path,
+  setPath,
+  collapsed,
+  onToggleCollapse,
+  catTree,
+}) {
   const tree = useMemo(() => buildHierarchyTree(stock, catTree), [stock, catTree])
+  /** Keys present = expanded. Default empty → all branches collapsed until user expands. */
+  const [expandedNodes, setExpandedNodes] = useState({})
 
-  const [collapsedNodes, setCollapsedNodes] = useState({})
-
-  const toggleCollapsed = (key) => {
-    setCollapsedNodes((prev) => {
+  const toggleExpanded = (key) => {
+    setExpandedNodes((prev) => {
       const next = { ...prev }
       if (next[key]) delete next[key]
       else next[key] = true
@@ -85,42 +123,166 @@ export default function HierarchyTreeSidebar({ stock, path, setPath, collapsed, 
 
   if (collapsed) {
     return (
-      <div className="w-12 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex flex-col items-center py-3">
-        <button
-          type="button"
-          title="Show category tree"
-          onClick={onToggleCollapse}
-          className="w-10 h-11 rounded-lg bg-white border border-gray-200 shadow-sm text-gray-600 hover:bg-gray-100 cursor-pointer"
-        >
+      <div style={ts.collapsedBar}>
+        <button type="button" title="Show category tree" onClick={onToggleCollapse} style={ts.collapsedBtn}>
           ▸
         </button>
+        <style>{`
+          .tree-node-btn:hover { background: rgba(255,255,255,0.12) !important; }
+        `}</style>
       </div>
     )
   }
 
   return (
-    <aside className="w-[min(26vw,280px)] min-w-[200px] max-w-[320px] flex-shrink-0 border-r border-gray-200 bg-gray-50 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-white/80">
-        <span className="text-[10px] font-bold tracking-wider text-gray-400">HIERARCHICAL PICKER</span>
-        <button
-          type="button"
-          title="Collapse sidebar"
-          onClick={onToggleCollapse}
-          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 cursor-pointer text-sm"
-        >
+    <aside style={ts.sidebar}>
+      <div style={ts.sidebarHeader}>
+        <span style={ts.sidebarTitle}>CATEGORIES</span>
+        <button type="button" title="Collapse sidebar" onClick={onToggleCollapse} style={ts.collapseBtn}>
           ◂
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-2">
+
+      <div style={ts.treeScroll} className="pos-dark-scroll">
         <TreeRows
           nodes={tree}
           depth={0}
-          collapsedNodes={collapsedNodes}
-          toggleCollapsed={toggleCollapsed}
+          expandedNodes={expandedNodes}
+          toggleExpanded={toggleExpanded}
           onSelect={setPath}
           activePath={path}
         />
       </div>
+
+      <style>{`
+        .tree-node-btn:hover { background: rgba(255,255,255,0.12) !important; }
+      `}</style>
     </aside>
   )
+}
+
+const ts = {
+  sidebar: {
+    width: 'min(26vw, 270px)',
+    minWidth: '195px',
+    maxWidth: '310px',
+    flexShrink: 0,
+    background: posTheme.panelBg,
+    borderRight: `1px solid ${posTheme.panelBorder}`,
+    backdropFilter: posTheme.blur,
+    WebkitBackdropFilter: posTheme.blur,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
+  sidebarHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0.75rem 0.9rem',
+    borderBottom: `1px solid ${posTheme.panelBorder}`,
+    flexShrink: 0,
+  },
+  sidebarTitle: {
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    color: posTheme.textMuted,
+  },
+  collapseBtn: {
+    minWidth: '36px',
+    minHeight: '36px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '8px',
+    background: 'rgba(255,255,255,0.08)',
+    border: `1px solid ${posTheme.panelBorder}`,
+    color: posTheme.textSecondary,
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+  },
+  treeScroll: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '0.5rem',
+  },
+  collapsedBar: {
+    width: '46px',
+    flexShrink: 0,
+    borderRight: `1px solid ${posTheme.panelBorder}`,
+    background: posTheme.panelBg,
+    backdropFilter: posTheme.blur,
+    WebkitBackdropFilter: posTheme.blur,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingTop: '0.8rem',
+  },
+  collapsedBtn: {
+    width: '34px',
+    height: '40px',
+    borderRadius: '10px',
+    background: 'rgba(255,255,255,0.12)',
+    border: `1px solid ${posTheme.cardBorder}`,
+    color: posTheme.text,
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expandBtn: {
+    width: '32px',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'transparent',
+    border: 'none',
+    color: posTheme.textMuted,
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+  },
+  nodeBtn: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    textAlign: 'left',
+    padding: '0.4rem 0.6rem',
+    borderRadius: '10px',
+    border: 'none',
+    fontSize: '0.82rem',
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: "'DM Sans', sans-serif",
+    transition: 'all 0.15s',
+    overflow: 'hidden',
+  },
+  nodeBtnActive: {
+    background: posTheme.goldBg,
+    color: posTheme.gold,
+    fontWeight: 700,
+    boxShadow: `inset 0 0 0 1px ${posTheme.goldBorder}`,
+  },
+  nodeBtnIdle: {
+    background: 'transparent',
+    color: posTheme.textSecondary,
+  },
+  countBadge: {
+    flexShrink: 0,
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    borderRadius: '999px',
+    padding: '0.1rem 0.45rem',
+  },
+  countBadgeActive: {
+    background: 'rgba(232,160,32,0.35)',
+    color: posTheme.goldDark,
+  },
+  countBadgeIdle: {
+    background: 'rgba(255,255,255,0.10)',
+    color: posTheme.textMuted,
+  },
 }

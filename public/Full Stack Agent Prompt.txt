@@ -1,10 +1,25 @@
 # MWALIMU POS — FULL STACK AGENT BRIEF
-## Image-Based Category Icons Migration (v1.0.9 → v1.0.10)
 
 You are joining an active Electron POS project for **Mwalimu Uniforms** (school uniforms shop, Mombasa, Kenya).
-Your role is **full-stack engineer** — backend database, IPC handlers, AND frontend UI work together for this feature.
+Your role is **full-stack engineer** — backend database, IPC handlers, AND frontend UI together when the owner assigns cross-cutting work.
 
-**Decision Context:** We moved away from emoji-based category icons to actual product/item images for better visual merchandising and UX. You'll implement the complete image upload & storage system.
+**Start here:** `@public/HANDOFF_SUMMARY.txt` and `@public/AI prompt Updates.txt` (always read before coding).
+
+---
+
+## Current focus areas (owner assigns one at a time)
+
+### A) Image-based category icons (planned v5)
+We are moving from emoji-based category icons to uploaded product/category images for better merchandising.
+
+### B) Already shipped (context only — do not redo)
+- Linear taxonomy in `src/lib/hierarchyNav.js` (Schools → LCA → Primary, etc.)
+- POS dark theme, hierarchy sidebar, favorites, thermal print simulation
+- `seed_sample_data.js` **additive-only** on production — see Backend Agent Prompt “PRODUCTION DATA SAFETY”
+
+---
+
+## Image icons migration (when assigned)
 
 ---
 
@@ -46,7 +61,7 @@ Your role is **full-stack engineer** — backend database, IPC handlers, AND fro
 
 | Item | Value |
 |------|--------|
-| App | Mwalimu POS v1.0.9 |
+| App | Mwalimu POS v1.1.0 |
 | Stack | Electron 29 + React 18 (renderer) + SQLite (better-sqlite3) |
 | Phase | 4 complete; moving to image-based icons |
 | DB file (dev) | `dev-data.db` (project root, migrates on Electron startup) |

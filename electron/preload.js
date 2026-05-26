@@ -40,6 +40,9 @@ contextBridge.exposeInMainWorld('api', {
     create:      (data) => invoke('categories:create', data),
     update:      (data) => invoke('categories:update', data),
     delete:      (id)   => invoke('categories:delete', id),
+    uploadIcon:  (data) => invoke('categories:uploadIcon', data),
+    getIcon:     (data) => invoke('categories:getIcon', data),
+    deleteIcon:  (data) => invoke('categories:deleteIcon', data),
   },
 
   // ── Stock ─────────────────────────────────────────────────────────────────

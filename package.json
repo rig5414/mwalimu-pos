@@ -1,6 +1,6 @@
 {
   "name": "mwalimu-pos",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "Mwalimu Uniforms — Point of Sale & Inventory System",
   "author": "Manasseh Telle",
   "main": "electron/main.js",
@@ -63,7 +63,8 @@
       "node_modules/node-thermal-printer/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "public/icon.ico"
     },
     "linux": {
       "target": "AppImage"

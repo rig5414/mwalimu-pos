@@ -1,6 +1,30 @@
 import { useState, useEffect, useRef } from 'react'
 import { useToast } from '../../hooks/useToast'
 import { computeBrowseState, barcodeMatchesVariant } from '../../lib/hierarchyNav'
+import { posTheme } from '../../styles/posTheme'
+
+function stockLevel(q) {
+  if (q === 0)
+    return { label: 'Out of stock', color: '#f87171', barColor: '#f87171', pct: 0 }
+  if (q <= 5)
+    return { label: `${q} units — Low`, color: '#fb923c', barColor: '#fb923c', pct: (q / 50) * 100 }
+  return { label: `${q} units`, color: '#4ade80', barColor: '#4ade80', pct: Math.min(100, (q / 50) * 100) }
+}
+
+function GlassModal({ title, subtitle, onClose, children, footer }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pos-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pos-glass-modal rounded-2xl w-full max-w-md shadow-none max-h-[90vh] overflow-y-auto pos-dark-scroll">
+        <div className="p-6 pb-4" style={{ borderBottom: `1px solid ${posTheme.panelBorder}` }}>
+          <h3 className="font-head font-bold text-lg text-white">{title}</h3>
+          {subtitle && <p className="text-sm mt-1" style={{ color: posTheme.textMuted }}>{subtitle}</p>}
+        </div>
+        <div className="p-6 pt-4">{children}</div>
+        {footer && <div className="px-6 pb-6 flex gap-3">{footer}</div>}
+      </div>
+    </div>
+  )
+}
 
 export default function StockPageSK() {
   const [stock, setStock] = useState([])
@@ -32,7 +56,7 @@ export default function StockPageSK() {
       if (window.api) {
         const [stockRes, catRes] = await Promise.all([
           window.api.stock.getAll(),
-          window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false })
+          window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false }),
         ])
         if (stockRes.ok) setStock(stockRes.data)
         if (catRes?.ok) setCatTree(catRes.data)
@@ -161,59 +185,56 @@ export default function StockPageSK() {
     }
   }
 
-  const stockLevel = (q) => {
-    if (q === 0) return { label: 'Out of stock', color: 'text-red-500', barColor: 'bg-red-400', pct: 0 }
-    if (q <= 5)
-      return { label: `${q} units — Low`, color: 'text-orange-500', barColor: 'bg-orange-400', pct: (q / 50) * 100 }
-    return { label: `${q} units`, color: 'text-green-600', barColor: 'bg-green-500', pct: Math.min(100, (q / 50) * 100) }
+  const cardStyle = {
+    background: posTheme.cardBg,
+    border: `1px solid ${posTheme.cardBorder}`,
+    borderRadius: '18px',
+    backdropFilter: posTheme.blur,
+    WebkitBackdropFilter: posTheme.blur,
+    boxShadow: posTheme.cardShadow,
   }
 
   return (
-    <div className="h-full overflow-y-auto p-5">
+    <div className="h-full overflow-y-auto p-5 pos-dark-scroll">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <button
               type="button"
               onClick={() => setPath([])}
-              className={`font-head font-bold text-xl transition-colors ${
-                path.length === 0 ? 'text-gray-800' : 'text-gray-400 hover:text-primary cursor-pointer'
-              }`}
+              className="font-head font-bold text-xl transition-colors cursor-pointer"
+              style={{ color: path.length === 0 ? posTheme.text : posTheme.textMuted }}
             >
               Stock
             </button>
             {path.map((segment, idx) => (
               <div key={idx} className="flex items-center gap-2">
-                <span className="text-gray-300 font-bold text-xl">/</span>
+                <span className="font-bold text-xl" style={{ color: posTheme.textDim }}>
+                  /
+                </span>
                 <button
                   type="button"
                   onClick={() => setPath(path.slice(0, idx + 1))}
-                  className={`font-head font-bold text-xl transition-colors ${
-                    idx === path.length - 1 ? 'text-gray-800' : 'text-gray-400 hover:text-primary cursor-pointer'
-                  }`}
+                  className="font-head font-bold text-xl transition-colors cursor-pointer"
+                  style={{ color: idx === path.length - 1 ? posTheme.text : posTheme.textMuted }}
                 >
                   {segment}
                 </button>
               </div>
             ))}
           </div>
-          <p className="text-sm text-gray-400 mt-0.5">
+          <p className="text-sm mt-0.5" style={{ color: posTheme.textMuted }}>
             {viewType === 'variants'
               ? 'Select a variant to add stock. Scan an unknown barcode to quick-add a product.'
               : 'Select a folder. Scan an unknown barcode to quick-add.'}
           </p>
         </div>
-        <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 px-4 py-2.5 min-h-[48px]">
-          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <div className="pos-search-bar min-w-[200px]">
+          <svg className="w-4 h-4 flex-shrink-0" style={{ color: posTheme.textMuted }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" strokeLinecap="round" />
           </svg>
-          <input
-            className="outline-none text-sm bg-transparent text-gray-800 placeholder-gray-400 w-48 min-h-[40px]"
-            placeholder="Search items…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <input placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
 
@@ -226,30 +247,34 @@ export default function StockPageSK() {
                 key={folder.id}
                 role="button"
                 tabIndex={0}
-                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-primary hover:shadow-md transition-all group flex flex-col justify-between min-h-[100px]"
+                className="p-4 cursor-pointer transition-all flex flex-col justify-between min-h-[100px] stock-folder-card"
+                style={cardStyle}
                 onClick={() => setPath([...path, folder.id])}
                 onKeyDown={(ev) => ev.key === 'Enter' && setPath([...path, folder.id])}
               >
                 <div>
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors text-primary">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                    style={{ background: posTheme.goldBg, border: `1px solid ${posTheme.goldBorder}`, color: posTheme.gold }}
+                  >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path
-                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
-                  <p className="font-bold text-sm text-gray-800 mb-0.5 group-hover:text-primary transition-colors line-clamp-1">
+                  <p className="font-bold text-sm mb-0.5 line-clamp-1" style={{ color: posTheme.text }}>
                     {folder.name}
                   </p>
-                  <p className="text-xs text-gray-400 mb-4">{folder.itemsCount} items inside</p>
+                  <p className="text-xs mb-4" style={{ color: posTheme.textMuted }}>
+                    {folder.itemsCount} items inside
+                  </p>
                 </div>
                 <div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1.5">
-                    <div className={`h-full rounded-full ${level.barColor} transition-all`} style={{ width: `${level.pct}%` }} />
+                  <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: posTheme.trackBg }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${level.pct}%`, background: level.barColor }} />
                   </div>
-                  <p className={`text-xs font-semibold ${level.color}`}>{folder.total_qty} total units</p>
+                  <p className="text-xs font-semibold" style={{ color: level.color }}>
+                    {folder.total_qty} total units
+                  </p>
                 </div>
               </div>
             )
@@ -262,18 +287,17 @@ export default function StockPageSK() {
           {currentLevelItems.map((item) => {
             const level = stockLevel(item.stock_qty)
             return (
-              <div
-                key={item.id}
-                className="bg-white rounded-xl border border-gray-200 p-4 relative overflow-hidden flex flex-col justify-between"
-              >
+              <div key={item.id} className="p-4 relative overflow-hidden flex flex-col justify-between" style={cardStyle}>
                 <div>
-                  <p className="font-bold text-sm text-gray-800 mb-0.5">{item.product_name}</p>
-                  <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5">
+                  <p className="font-bold text-sm mb-0.5" style={{ color: posTheme.text }}>
+                    {item.product_name}
+                  </p>
+                  <p className="text-xs mb-3 flex items-center gap-1.5" style={{ color: posTheme.textMuted }}>
                     {item.color && (
                       <>
                         <span
-                          className="w-2.5 h-2.5 rounded-full border border-gray-300"
-                          style={{ backgroundColor: item.color_hex || '#ccc' }}
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: item.color_hex || '#888', border: '1px solid rgba(255,255,255,0.3)' }}
                         />
                         {item.color} ·{' '}
                       </>
@@ -282,17 +306,19 @@ export default function StockPageSK() {
                   </p>
                 </div>
                 <div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1.5">
-                    <div className={`h-full rounded-full ${level.barColor} transition-all`} style={{ width: `${level.pct}%` }} />
+                  <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: posTheme.trackBg }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${level.pct}%`, background: level.barColor }} />
                   </div>
-                  <p className={`text-xs font-semibold ${level.color} mb-3`}>{level.label}</p>
+                  <p className="text-xs font-semibold mb-3" style={{ color: level.color }}>
+                    {level.label}
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
                       setAddingTo(item)
                       setQty(10)
                     }}
-                    className="w-full min-h-[44px] py-2 bg-primary-light text-primary rounded-lg text-sm font-semibold cursor-pointer hover:bg-blue-100 transition-colors"
+                    className="w-full min-h-[44px] py-2 rounded-xl text-sm font-semibold cursor-pointer pos-btn-gold"
                   >
                     + Add Stock
                   </button>
@@ -303,146 +329,124 @@ export default function StockPageSK() {
         </div>
       )}
 
+      {currentLevelItems.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16" style={{ color: posTheme.textMuted }}>
+          <span className="text-4xl mb-3">📦</span>
+          <p className="text-sm">No items found</p>
+        </div>
+      )}
+
       {addingTo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(10,20,40,0.6)' }}
-          onClick={(e) => e.target === e.currentTarget && setAddingTo(null)}
-        >
-          <div className="bg-white rounded-2xl p-7 w-full max-w-xs mx-4 shadow-modal">
-            <h3 className="font-head font-bold text-lg mb-1">Add Stock</h3>
-            <p className="text-sm text-gray-400 mb-5">
-              {addingTo.product_name} — {addingTo.color} · Size {addingTo.size}
-            </p>
-            <label className="label">Quantity to Add</label>
-            <input
-              type="number"
-              value={qty}
-              onChange={(e) => setQty(parseInt(e.target.value, 10) || 0)}
-              min="1"
-              className="input font-head font-bold text-2xl text-center mb-5"
-            />
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setAddingTo(null)}
-                className="flex-1 min-h-[44px] py-3 rounded-xl border-2 border-gray-200 font-head font-semibold text-gray-500 cursor-pointer hover:border-gray-300"
-              >
+        <GlassModal
+          title="Add Stock"
+          subtitle={`${addingTo.product_name} — ${addingTo.color} · Size ${addingTo.size}`}
+          onClose={() => setAddingTo(null)}
+          footer={
+            <>
+              <button type="button" onClick={() => setAddingTo(null)} className="flex-1 min-h-[44px] py-3 rounded-xl pos-btn-ghost">
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleAddStock}
                 disabled={saving}
-                className="flex-[2] min-h-[44px] py-3 rounded-xl bg-primary text-white font-head font-bold cursor-pointer hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-[2] min-h-[44px] py-3 rounded-xl pos-btn-gold disabled:opacity-50"
               >
                 {saving ? 'Saving...' : `+ Add ${qty} unit(s)`}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <label className="pos-glass-label">Quantity to Add</label>
+          <input
+            type="number"
+            value={qty}
+            onChange={(e) => setQty(parseInt(e.target.value, 10) || 0)}
+            min="1"
+            className="pos-glass-input font-head font-bold text-2xl text-center"
+          />
+        </GlassModal>
       )}
 
       {quickAddOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(10,20,40,0.6)' }}
-          onClick={(e) => e.target === e.currentTarget && setQuickAddOpen(false)}
-        >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-modal max-h-[90vh] overflow-y-auto">
-            <h3 className="font-head font-bold text-lg mb-1">Quick Add Product</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Barcode / SKU: <span className="font-mono font-bold">{qaBarcode}</span>
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="label">Name *</label>
-                <input className="input" value={qa.name} onChange={(e) => setQa({ ...qa, name: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Category *</label>
-                <select
-                  className="input"
-                  value={qa.category_id}
-                  onChange={(e) => setQa({ ...qa, category_id: e.target.value })}
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Subcategory</label>
-                <input
-                  className="input"
-                  value={qa.subcategory}
-                  onChange={(e) => setQa({ ...qa, subcategory: e.target.value })}
-                  placeholder="e.g. Pullovers"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Price (KES) *</label>
-                  <input
-                    type="number"
-                    className="input"
-                    value={qa.price}
-                    onChange={(e) => setQa({ ...qa, price: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="label">Cost (KES)</label>
-                  <input
-                    type="number"
-                    className="input"
-                    value={qa.cost_price}
-                    onChange={(e) => setQa({ ...qa, cost_price: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Color</label>
-                  <input className="input" value={qa.color} onChange={(e) => setQa({ ...qa, color: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Size</label>
-                  <input className="input" value={qa.size} onChange={(e) => setQa({ ...qa, size: e.target.value })} />
-                </div>
-              </div>
-              <div>
-                <label className="label">Initial stock</label>
-                <input
-                  type="number"
-                  className="input"
-                  min="0"
-                  value={qa.stock_qty}
-                  onChange={(e) => setQa({ ...qa, stock_qty: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => setQuickAddOpen(false)}
-                className="flex-1 min-h-[48px] rounded-xl border-2 border-gray-200 font-semibold text-gray-600"
-              >
+        <GlassModal
+          title="Quick Add Product"
+          subtitle={
+            <>
+              Barcode / SKU: <span className="font-mono font-bold text-white">{qaBarcode}</span>
+            </>
+          }
+          onClose={() => setQuickAddOpen(false)}
+          footer={
+            <>
+              <button type="button" onClick={() => setQuickAddOpen(false)} className="flex-1 min-h-[48px] rounded-xl pos-btn-ghost">
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={submitQuickAdd}
-                disabled={saving}
-                className="flex-[2] min-h-[48px] rounded-xl bg-primary text-white font-head font-bold disabled:opacity-50"
-              >
+              <button type="button" onClick={submitQuickAdd} disabled={saving} className="flex-[2] min-h-[48px] rounded-xl pos-btn-gold">
                 {saving ? 'Saving…' : 'Create product'}
               </button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <div>
+              <label className="pos-glass-label">Name *</label>
+              <input className="pos-glass-input" value={qa.name} onChange={(e) => setQa({ ...qa, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="pos-glass-label">Category *</label>
+              <select className="pos-glass-select" value={qa.category_id} onChange={(e) => setQa({ ...qa, category_id: e.target.value })}>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="pos-glass-label">Subcategory</label>
+              <input
+                className="pos-glass-input"
+                value={qa.subcategory}
+                onChange={(e) => setQa({ ...qa, subcategory: e.target.value })}
+                placeholder="e.g. Pullovers"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="pos-glass-label">Price (KES) *</label>
+                <input type="number" className="pos-glass-input" value={qa.price} onChange={(e) => setQa({ ...qa, price: e.target.value })} />
+              </div>
+              <div>
+                <label className="pos-glass-label">Cost (KES)</label>
+                <input type="number" className="pos-glass-input" value={qa.cost_price} onChange={(e) => setQa({ ...qa, cost_price: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="pos-glass-label">Color</label>
+                <input className="pos-glass-input" value={qa.color} onChange={(e) => setQa({ ...qa, color: e.target.value })} />
+              </div>
+              <div>
+                <label className="pos-glass-label">Size</label>
+                <input className="pos-glass-input" value={qa.size} onChange={(e) => setQa({ ...qa, size: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label className="pos-glass-label">Initial stock</label>
+              <input type="number" className="pos-glass-input" min="0" value={qa.stock_qty} onChange={(e) => setQa({ ...qa, stock_qty: e.target.value })} />
             </div>
           </div>
-        </div>
+        </GlassModal>
       )}
+
+      <style>{`
+        .stock-folder-card:hover {
+          border-color: rgba(232,160,32,0.5) !important;
+          background: rgba(255,255,255,0.18) !important;
+          transform: translateY(-2px);
+        }
+      `}</style>
     </div>
   )
 }

@@ -256,6 +256,56 @@ module.exports.register = function (ipcMain, db) {
     return { ok: true, reassigned_count: productsInCategory.count, reassigned_to: reassignedTo }
   })
 
+  handle('categories:uploadIcon', ({ category_id, file }) => {
+    if (!file || !file.data) {
+      throw new Error('No file data provided')
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image file is too large (max 5MB)')
+    }
+    const allowedMimeTypes = ['image/jpeg', 'image/png']
+    if (!allowedMimeTypes.includes(file.type)) {
+      throw new Error('Invalid file format. Only JPEG and PNG are allowed.')
+    }
+    
+    const buffer = Buffer.from(file.data)
+    
+    // Double validation: check magic bytes/numbers of the file buffer
+    // JPEG: FF D8
+    // PNG: 89 50 4E 47
+    const isJpeg = buffer[0] === 0xFF && buffer[1] === 0xD8
+    const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47
+    if (!isJpeg && !isPng) {
+      throw new Error('Invalid image file. Only genuine JPEG and PNG files are accepted.')
+    }
+
+    db.prepare('UPDATE categories SET icon_data = ? WHERE id = ?').run(buffer, category_id)
+    return { ok: true, size: file.size, mimeType: file.type }
+  })
+
+  handle('categories:getIcon', ({ category_id }) => {
+    const row = db.prepare('SELECT icon_data FROM categories WHERE id = ?').get(category_id)
+    if (!row || !row.icon_data) {
+      return null
+    }
+    
+    const buffer = row.icon_data
+    let mime = 'image/png' // fallback
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
+      mime = 'image/jpeg'
+    } else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+      mime = 'image/png'
+    }
+    
+    const base64 = buffer.toString('base64')
+    return `data:${mime};base64,${base64}`
+  })
+
+  handle('categories:deleteIcon', ({ category_id }) => {
+    db.prepare('UPDATE categories SET icon_data = NULL WHERE id = ?').run(category_id)
+    return { ok: true }
+  })
+
   // ── Products ───────────────────────────────────────────────────────────────
   handle('products:getAll', (filters = {}) => {
     let query = `

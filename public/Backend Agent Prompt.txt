@@ -44,7 +44,7 @@ Your role is **backend & database specialist**. The product owner will give you 
 
 Skim only if relevant to your task:
 - `@electron/ipc/printReceipt.js` — thermal print (hardware, not core DB)
-- `@package.json` — v1.0.9, Electron 29, better-sqlite3
+- `@package.json` — v1.1.0, Electron 29, better-sqlite3
 
 Confirm onboarding in your first message: version, DB user_version, and that you will not change frontend without instruction.
 
@@ -54,7 +54,7 @@ Confirm onboarding in your first message: version, DB user_version, and that you
 
 | Item | Value |
 |------|--------|
-| App | Mwalimu POS v1.0.9 |
+| App | Mwalimu POS v1.1.0 |
 | Stack | Electron 29 + React 18 (renderer) + SQLite (better-sqlite3) |
 | Phase | 4 complete; backend/DB refinement before next frontend push |
 | DB file (dev) | `dev-data.db` (project root, migrates on Electron startup) |
@@ -170,7 +170,8 @@ Use this list to show you understand the roadmap. Implement **only** what the ow
 - [ ] Low-stock query using configurable thresholds
 
 ### Import / seed
-- [ ] Rewrite `seed_sample_data.js`, `generate_csvs.js`, `import_csv.js` for UUID + name-based category lookup
+- [x] `seed_sample_data.js` — **additive by default** (2026-05-26); see PRODUCTION DATA SAFETY below
+- [ ] Align `generate_csvs.js`, `import_csv.js` fully with UUID + additive-only policy
 - [ ] Import validation summary (dry-run mode)
 
 ### Reports (handler-side)
@@ -213,9 +214,31 @@ Rules:
 
 ---
 
+## PRODUCTION DATA SAFETY (MANDATORY)
+
+**Client machines hold real sales, clients, and inventory. Never wipe their DB.**
+
+| Script / action | Safe on production? | Notes |
+|-----------------|----------------------|-------|
+| `npx electron seed_sample_data.js` | **Yes (default)** | Additive only: inserts missing categories/schools/products; skips duplicates |
+| `MWALIMU_SEED_RESET=1` + seed | **NO** | Deletes products, variants, pos_favorites — **dev only** |
+| `electron/db/migrate.js` on startup | **Yes** | Idempotent ALTER/CREATE; first-run seed only when no admin user exists |
+| `products:delete`, `sales:void` | Use with care | User-initiated; not bulk scripts |
+
+**`seed_sample_data.js` rules (implemented):**
+- Does **not** DELETE or UPDATE existing categories, products, clients, sales, users, or stock movements
+- `ensureTopCategories()` / `ensureSchoolChildren()` — INSERT only when row missing
+- `insertProductIfMissing()` — skip if same name + category_id + subcategory + school_id
+- Never run `clearProducts()` unless `MWALIMU_SEED_RESET=1` or `--reset`
+
+**When adding new seed/migration logic:** additive INSERT only; document destructive flags explicitly.
+
+---
+
 ## CONTEXT YOU MUST NOT GET WRONG
 
-- POS hierarchy is **5 levels**: Category → Subcategory → Plain/Badged → Product → Variant — driven by DB `category_path` + variant `attributes`, not hardcoded maps
+- POS browse paths use **`src/lib/hierarchyNav.js`** linear taxonomy (`getNavSegments`, `computeBrowseState`) — Schools branch includes LCA → Primary/Junior Secondary
+- DB may also expose `category_path` + variant `attributes` (v3/v4) — frontend merges both; do not break `stock:getAll` shape (`school_name`, `category_path`, etc.)
 - **Leaf categories** are where products attach — not root categories
 - **Schools** are a separate branch under the Schools root; badged products use `school_id`
 - Frontend already works with v4 — breaking handler response shapes breaks POS/admin without UI updates
