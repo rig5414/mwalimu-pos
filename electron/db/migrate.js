@@ -193,15 +193,12 @@ module.exports = function migrate(db) {
   }
 
   if (version < 4) {
-    const runV4 = db.transaction(() => {
-      const result = migrateLegacyIdsToUuids(db)
-      if (result.categories > 0 || result.products > 0) {
-        console.log(
-          `  → Migrated ${result.categories} category id(s) and ${result.products} product id(s) to UUIDs`
-        )
-      }
-    })
-    runV4()
+    const result = migrateLegacyIdsToUuids(db)
+    if (result.categories > 0 || result.products > 0) {
+      console.log(
+        `  → Migrated ${result.categories} category id(s) and ${result.products} product id(s) to UUIDs`
+      )
+    }
     db.exec('PRAGMA user_version = 4')
     version = 4
     console.log('✅ Database upgraded to v4 (UUID primary keys)')

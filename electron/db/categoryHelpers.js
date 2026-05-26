@@ -241,34 +241,32 @@ function migrateLegacyIdsToUuids(db) {
   }
 
   db.pragma('foreign_keys = OFF')
+  try {
+    const insertCat = db.prepare(`
+      INSERT INTO categories (id, name, parent_id, icon, sort_order, type, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
 
-  const insertCat = db.prepare(`
-    INSERT INTO categories (id, name, parent_id, icon, sort_order, type, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `)
+    for (const cat of legacyCats) {
+      const newId = idMap.get(cat.id)
+      const newParent = cat.parent_id ? (idMap.get(cat.parent_id) || cat.parent_id) : null
+      insertCat.run(newId, cat.name, newParent, cat.icon, cat.sort_order, cat.type || 'category', cat.created_at)
+    }
 
-  for (const cat of legacyCats) {
-    const newId = idMap.get(cat.id)
-    const newParent = cat.parent_id ? (idMap.get(cat.parent_id) || cat.parent_id) : null
-    insertCat.run(newId, cat.name, newParent, cat.icon, cat.sort_order, cat.type || 'category', cat.created_at)
+    for (const [oldId, newId] of idMap) {
+      db.prepare('UPDATE categories SET parent_id = ? WHERE parent_id = ?').run(newId, oldId)
+      db.prepare('UPDATE products SET category_id = ? WHERE category_id = ?').run(newId, oldId)
+      db.prepare('UPDATE products SET school_id = ? WHERE school_id = ?').run(newId, oldId)
+    }
+
+    for (const cat of legacyCats) {
+      db.prepare('DELETE FROM categories WHERE id = ?').run(cat.id)
+    }
+
+    // Product IDs are TEXT and can remain legacy safely; avoid risky FK churn on live installs.
+  } finally {
+    db.pragma('foreign_keys = ON')
   }
-
-  for (const cat of legacyCats) {
-    db.prepare('DELETE FROM categories WHERE id = ?').run(cat.id)
-  }
-
-  for (const [oldId, newId] of idMap) {
-    db.prepare('UPDATE categories SET parent_id = ? WHERE parent_id = ?').run(newId, oldId)
-    db.prepare('UPDATE products SET category_id = ? WHERE category_id = ?').run(newId, oldId)
-    db.prepare('UPDATE products SET school_id = ? WHERE school_id = ?').run(newId, oldId)
-  }
-
-  for (const [oldId, newId] of productMap) {
-    db.prepare('UPDATE products SET id = ? WHERE id = ?').run(newId, oldId)
-    db.prepare('UPDATE product_variants SET product_id = ? WHERE product_id = ?').run(newId, oldId)
-  }
-
-  db.pragma('foreign_keys = ON')
 
   return { categories: legacyCats.length, products: legacyProducts.length }
 }
