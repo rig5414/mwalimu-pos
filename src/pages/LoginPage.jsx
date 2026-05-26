@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
+/** Works in Vite dev (/) and Electron production (./) */
+const asset = (file) => `${import.meta.env.BASE_URL}${file}`
+
 const ROLES = [
   { id: 'shopkeeper', label: 'Shopkeeper', icon: '🛒', desc: 'Sales & stock entry' },
   { id: 'admin',      label: 'Admin',       icon: '⚙️', desc: 'Full system access' },
@@ -44,7 +47,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div style={styles.logoWrap}>
           <div style={styles.logoBox}>
-            <img src="/icon.png" alt="Mwalimu Uniforms" style={styles.logoImg} />
+            <img src={asset('icon.png')} alt="Mwalimu Uniforms" style={styles.logoImg} />
           </div>
           <h1 style={styles.appName}>Mwalimu Uniforms</h1>
           <p style={styles.appSub}>Point of Sale System</p>
@@ -164,7 +167,7 @@ const styles = {
   bg: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: 'url(/login_bg.png)',
+    backgroundImage: `url(${asset('login_bg.png')})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',

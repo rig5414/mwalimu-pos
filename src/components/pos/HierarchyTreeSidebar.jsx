@@ -33,10 +33,10 @@ function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activ
             <div
               style={{
                 display: 'flex',
-                alignItems: 'stretch',
+                alignItems: 'center',
+                gap: '4px',
                 minHeight: '40px',
                 borderRadius: '10px',
-                overflow: 'hidden',
               }}
             >
               {hasKids ? (
@@ -48,11 +48,12 @@ function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activ
                     toggleExpanded(key)
                   }}
                   style={ts.expandBtn}
+                  className="tree-expand-btn"
                 >
-                  {open ? '▾' : '▸'}
+                  <span style={ts.expandIcon}>{open ? '▾' : '▸'}</span>
                 </button>
               ) : (
-                <span style={{ width: '32px', flexShrink: 0 }} />
+                <span style={ts.expandSpacer} aria-hidden />
               )}
               <button
                 type="button"
@@ -156,6 +157,7 @@ export default function HierarchyTreeSidebar({
 
       <style>{`
         .tree-node-btn:hover { background: rgba(255,255,255,0.12) !important; }
+        .tree-expand-btn:hover { background: rgba(255,255,255,0.22) !important; }
       `}</style>
     </aside>
   )
@@ -233,16 +235,29 @@ const ts = {
     justifyContent: 'center',
   },
   expandBtn: {
-    width: '32px',
+    width: '28px',
+    height: '28px',
     flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'transparent',
-    border: 'none',
-    color: posTheme.textMuted,
+    background: 'rgba(255,255,255,0.10)',
+    border: `1px solid ${posTheme.panelBorder}`,
+    borderRadius: '6px',
+    color: posTheme.text,
     cursor: 'pointer',
-    fontSize: '0.8rem',
+    padding: 0,
+    transition: 'background 0.15s',
+  },
+  expandIcon: {
+    fontSize: '0.75rem',
+    lineHeight: 1,
+    fontWeight: 700,
+    color: posTheme.text,
+  },
+  expandSpacer: {
+    width: '28px',
+    flexShrink: 0,
   },
   nodeBtn: {
     flex: 1,
