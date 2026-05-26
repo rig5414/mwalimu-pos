@@ -25,20 +25,20 @@ jobs:
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+
+      - name: Upload Windows release files
+        uses: actions/upload-artifact@v4
         with:
-          files: | 
-             dist-electron/**/*.exe
-             dist-electron/**/*.exe.blockmap
-             dist-electron/latest.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: windows-release
+          path: |
+            dist-electron/Mwalimu-POS-Setup-*.exe
+            dist-electron/Mwalimu-POS-Setup-*.exe.blockmap
+            dist-electron/latest.yml
+          if-no-files-found: error
 
   build-linux:
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail the whole workflow if Linux build fails
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -57,12 +57,37 @@ jobs:
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Linux Release
+      - name: Upload Linux release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: |
+            dist-electron/*.AppImage
+            dist-electron/latest-linux.yml
+          if-no-files-found: ignore
+
+  publish-release:
+    needs: [build-windows, build-linux]
+    if: ${{ needs.build-windows.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows release files
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: release-assets/windows
+
+      - name: Download Linux release files
+        if: ${{ needs.build-linux.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-release
+          path: release-assets/linux
+
+      - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v1
         with:
-          files:  |
-              dist-electron/**/*.AppImage
-              dist-electron/latest-linux.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            release-assets/windows/*
+            release-assets/linux/*
 
