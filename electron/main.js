@@ -1,18 +1,23 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const log = require('electron-log')
+const path = require('path')
+
+log.transports.file.level = 'info'
+log.info('Mwalimu POS starting…', { packaged: app.isPackaged, version: app.getVersion() })
+
 let autoUpdater = null
 try {
   const { autoUpdater: au } = require('electron-updater')
   autoUpdater = au
 } catch (e) {
-  // electron-updater fails in dev mode before app is ready
-  console.log('⚠️  electron-updater not available (dev mode)')
+  log.warn('electron-updater not available:', e.message)
 }
-const path = require('path')
-// Detect dev mode: when running from source (not packaged) or with Vite dev server
-const isDev = process.env.NODE_ENV !== 'production' && !process.argv.some(arg => arg.includes('ASAR'))
+
+const isDev = !app.isPackaged
 
 // ─── Database ───────────────────────────────────────────────────────────────
 let db
+
 function initDB() {
   const Database = require('better-sqlite3')
   const dbPath = isDev
@@ -26,7 +31,7 @@ function initDB() {
   const migrate = require('./db/migrate')
   migrate(db)
 
-  console.log('✅ Database ready at:', dbPath)
+  log.info('Database ready at:', dbPath)
 }
 
 // ─── Window ──────────────────────────────────────────────────────────────────
@@ -38,6 +43,8 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 700,
+    show: false,
+    center: true,
     title: 'Mwalimu Uniforms POS',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -48,83 +55,100 @@ function createWindow() {
     autoHideMenuBar: !isDev,
   })
 
+  mainWindow.once('ready-to-show', () => {
+    if (!mainWindow) return
+    mainWindow.show()
+    mainWindow.focus()
+  })
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
     const indexPath = path.join(__dirname, '../dist/index.html')
-    mainWindow.loadFile(indexPath)
-      .catch(err => {
-        console.error('Failed to load app:', err)
-        mainWindow.loadFile(path.join(app.getAppPath(), 'dist/index.html'))
+    mainWindow
+      .loadFile(indexPath)
+      .catch((err) => {
+        log.error('Failed to load app from primary path:', err)
+        return mainWindow.loadFile(path.join(app.getAppPath(), 'dist/index.html'))
+      })
+      .catch((err) => {
+        log.error('Failed to load app from fallback path:', err)
+        dialog.showErrorBox(
+          'Mwalimu POS — load error',
+          'The application UI could not be loaded. Please reinstall from the latest installer.\n\n' +
+            String(err?.message || err)
+        )
       })
   }
 
-  mainWindow.on('closed', () => { mainWindow = null })
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+}
+
+function showStartupError(title, err) {
+  const detail = err?.stack || String(err?.message || err)
+  log.error(title, detail)
+  dialog.showErrorBox(title, detail)
 }
 
 // ─── Auto Updater ─────────────────────────────────────────────────────────────
 function setupAutoUpdater() {
-  if (isDev || !autoUpdater) return  // never run in dev or if autoUpdater failed to load
+  if (isDev || !autoUpdater) return
 
-  // Silent background check on startup
-  autoUpdater.autoDownload = true        // download automatically once found
-  autoUpdater.autoInstallOnAppQuit = true // install when user quits naturally
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
 
-  autoUpdater.checkForUpdates().catch(err => {
-    console.log('Update check failed:', err.message)
+  autoUpdater.checkForUpdates().catch((err) => {
+    log.warn('Update check failed:', err.message)
   })
 
-  // ── Update available → inform user, download starts automatically ──
   autoUpdater.on('update-available', (info) => {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update Available',
       message: `Version ${info.version} is available`,
-      detail: 'A new update is downloading in the background. You will be notified when it is ready to install.',
+      detail:
+        'A new update is downloading in the background. You will be notified when it is ready to install.',
       buttons: ['OK'],
     })
   })
 
-  // ── Already on latest ──
   autoUpdater.on('update-not-available', () => {
-    console.log('✅ App is up to date.')
+    log.info('App is up to date.')
   })
 
-  // ── Download progress (optional — logs to console) ──
   autoUpdater.on('download-progress', (progress) => {
-    const msg = `Downloading update: ${Math.round(progress.percent)}%`
-    console.log(msg)
-    // Also update the window title so user sees progress
+    log.info(`Downloading update: ${Math.round(progress.percent)}%`)
     if (mainWindow) {
       mainWindow.setTitle(`Mwalimu POS — Updating ${Math.round(progress.percent)}%`)
     }
   })
 
-  // ── Downloaded and ready — ask user to restart ──
   autoUpdater.on('update-downloaded', (info) => {
-    // Reset window title
     if (mainWindow) mainWindow.setTitle('Mwalimu Uniforms POS')
 
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Ready to Install',
-      message: `Version ${info.version} has been downloaded`,
-      detail: 'Restart Mwalimu POS now to apply the update. If you choose Later, it will install automatically next time you close the app.',
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1,
-    }).then(({ response }) => {
-      if (response === 0) {
-        autoUpdater.quitAndInstall()
-      }
-    })
+    dialog
+      .showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready to Install',
+        message: `Version ${info.version} has been downloaded`,
+        detail:
+          'Restart Mwalimu POS now to apply the update. If you choose Later, it will install automatically next time you close the app.',
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          autoUpdater.quitAndInstall(false, true)
+        }
+      })
   })
 
-  // ── Error handling ──
   autoUpdater.on('error', (err) => {
-    console.error('Auto-updater error:', err.message)
-    // Only show dialog for non-network errors to avoid annoying the user
+    log.error('Auto-updater error:', err.message)
     if (!err.message.includes('net::') && !err.message.includes('ENOTFOUND')) {
       dialog.showMessageBox(mainWindow, {
         type: 'warning',
@@ -138,19 +162,44 @@ function setupAutoUpdater() {
 }
 
 // ─── App lifecycle ───────────────────────────────────────────────────────────
-app.whenReady().then(() => {
-  initDB()
-  createWindow()
-  registerIPCHandlers()
-  setupAutoUpdater()   // ← replaces the old checkForUpdatesAndNotify block
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    } else {
+      createWindow()
+    }
   })
-})
+
+  app.whenReady().then(() => {
+    createWindow()
+
+    try {
+      initDB()
+      registerIPCHandlers()
+    } catch (err) {
+      showStartupError('Mwalimu POS — startup failed', err)
+    }
+
+    setupAutoUpdater()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+process.on('uncaughtException', (err) => {
+  showStartupError('Mwalimu POS — unexpected error', err)
 })
 
 // ─── IPC Handlers ────────────────────────────────────────────────────────────

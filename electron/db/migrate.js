@@ -208,14 +208,10 @@ module.exports = function migrate(db) {
   }
 
   if (version < 5) {
-    const runV5 = db.transaction(() => {
-      const fixCategories = require('./fixCategories')
-      fixCategories(db)
-    })
-    runV5()
+    // v5: taxonomy alignment slot — fixCategories was never shipped; do not block startup.
     db.exec('PRAGMA user_version = 5')
     version = 5
-    console.log('✅ Database upgraded to v5 (complete category taxonomy and sample products)')
+    console.log('✅ Database upgraded to v5 (taxonomy version marker)')
   }
 
   if (version < 6) {
