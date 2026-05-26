@@ -163,6 +163,98 @@ function seedDefaultSubcategories(db) {
   }
 }
 
+function isInnerwearAlias(name) {
+  const n = String(name || '').trim()
+  return n === 'Innerwear' || n === 'Inner Wear'
+}
+
+/**
+ * Canonicalize Innerwear and remove duplicate root/child rows.
+ * Reassigns products from bogus "Innerwear" child folders to real subcategory leaves.
+ */
+function reconcileInnerwearCategories(db) {
+  const roots = db.prepare(`
+    SELECT id, name, parent_id, sort_order
+    FROM categories
+    WHERE parent_id IS NULL AND (name = 'Innerwear' OR name = 'Inner Wear')
+    ORDER BY
+      (SELECT COUNT(*) FROM products WHERE category_id = categories.id) DESC,
+      sort_order,
+      name
+  `).all()
+
+  if (roots.length === 0) return { removed: 0, canonicalId: null }
+
+  const canonical = roots[0]
+  db.prepare("UPDATE categories SET name = 'Inner Wear', type = 'root' WHERE id = ?").run(canonical.id)
+
+  let removed = 0
+
+  const mergeRootIntoCanonical = (dupId) => {
+    db.prepare('UPDATE categories SET parent_id = ? WHERE parent_id = ?').run(canonical.id, dupId)
+    db.prepare('UPDATE products SET category_id = ? WHERE category_id = ?').run(canonical.id, dupId)
+    db.prepare('UPDATE products SET school_id = ? WHERE school_id = ?').run(canonical.id, dupId)
+    db.prepare('DELETE FROM categories WHERE id = ?').run(dupId)
+    removed += 1
+  }
+
+  for (const dup of roots.slice(1)) {
+    mergeRootIntoCanonical(dup.id)
+  }
+
+  const updateProduct = db.prepare(`
+    UPDATE products
+    SET category_id = ?, subcategory = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `)
+
+  const misplaced = db.prepare(`
+    SELECT c.id, c.name, c.parent_id
+    FROM categories c
+    WHERE c.parent_id IS NOT NULL AND (c.name = 'Innerwear' OR c.name = 'Inner Wear')
+  `).all()
+
+  for (const row of misplaced) {
+    const parent = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(row.parent_id)
+    const parentIsInnerwear = parent && (isInnerwearAlias(parent.name) || parent.id === canonical.id)
+
+    const childCats = db.prepare('SELECT id FROM categories WHERE parent_id = ?').all(row.id)
+    for (const ch of childCats) {
+      db.prepare('UPDATE categories SET parent_id = ? WHERE parent_id = ?').run(canonical.id, ch.id)
+    }
+
+    const products = db.prepare('SELECT id, subcategory FROM products WHERE category_id = ?').all(row.id)
+    for (const p of products) {
+      const subName = String(p.subcategory || '').trim() || 'Boxers'
+      let leaf =
+        findCategoryByName(db, { name: subName, parentId: canonical.id }) ||
+        findCategoryByName(db, { name: subName, parentId: parent?.id })
+
+      if (!leaf && parentIsInnerwear) {
+        leaf = ensureCategory(db, {
+          name: subName,
+          parentId: canonical.id,
+          sortOrder: 0,
+          type: 'subcategory',
+        })
+      }
+
+      if (leaf) {
+        updateProduct.run(leaf.id, leaf.name, p.id)
+      } else if (parent) {
+        updateProduct.run(parent.id, subName, p.id)
+      } else {
+        updateProduct.run(canonical.id, subName, p.id)
+      }
+    }
+
+    db.prepare('DELETE FROM categories WHERE id = ?').run(row.id)
+    removed += 1
+  }
+
+  return { removed, canonicalId: canonical.id }
+}
+
 /** Move products from root categories to leaf subcategory rows; keep subcategory text in sync. */
 function migrateProductsToLeafCategories(db) {
   const products = db.prepare(`
@@ -354,6 +446,8 @@ module.exports = {
   buildCategoryTreeRows,
   flattenCategoryTree,
   resolveProductCategoryId,
+  reconcileInnerwearCategories,
+  isInnerwearAlias,
   DEFAULT_SUBCATEGORIES,
   DEFAULT_SCHOOLS,
 }

@@ -144,6 +144,34 @@ export function normalizeCategoryName(name) {
   return name
 }
 
+function isInnerwearAlias(name) {
+  const n = String(name || '').trim()
+  return n === 'Innerwear' || n === 'Inner Wear'
+}
+
+/** Remove duplicate Innerwear root/child rows from DB-driven trees (display safety net). */
+export function filterDuplicateInnerwearNodes(nodes, parentName = null) {
+  if (!Array.isArray(nodes) || nodes.length === 0) return nodes
+
+  let sawInnerwearRoot = false
+  return nodes
+    .filter((n) => {
+      const name = n.name || n.label || ''
+      if (!parentName && isInnerwearAlias(name)) {
+        if (sawInnerwearRoot) return false
+        sawInnerwearRoot = true
+      }
+      if (parentName && isInnerwearAlias(parentName) && isInnerwearAlias(name)) return false
+      return true
+    })
+    .map((n) => ({
+      ...n,
+      children: n.children?.length
+        ? filterDuplicateInnerwearNodes(n.children, n.name || n.label)
+        : n.children,
+    }))
+}
+
 export function normalizeSubcategory(parentCat, raw) {
   const parent = normalizeCategoryName(parentCat)
   const allowed = SUBCATEGORIES_BY_PARENT[parent]
@@ -283,10 +311,15 @@ function findCatNode(tree, path) {
   return undefined
 }
 
-/**
- * Build sidebar tree: nested nodes { id, label, path, count, children? }
- * Accepts optional catTree to include empty folders.
- */
+export function sortBrowseTreeRoots(nodes) {
+  if (!Array.isArray(nodes)) return []
+  return [...nodes].sort((a, b) => {
+    const ia = TOP_LEVEL_ORDER.indexOf(normalizeCategoryName(a.name))
+    const ib = TOP_LEVEL_ORDER.indexOf(normalizeCategoryName(b.name))
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || String(a.name).localeCompare(String(b.name))
+  })
+}
+
 export function buildHierarchyTree(stock, catTree) {
   if (catTree && Array.isArray(catTree)) {
     const counts = new Map()
@@ -301,16 +334,17 @@ export function buildHierarchyTree(stock, catTree) {
 
     function catNodeToTree(node) {
       const pathKey = '›' + node.path.join('›')
+      const children = node.children?.length ? node.children.map(catNodeToTree) : undefined
       return {
         id: node.id,
         label: formatPathSegmentForDisplay(node.name),
         path: node.path,
         count: counts.get(pathKey) || 0,
-        children: node.children?.length ? node.children.map(catNodeToTree) : undefined,
+        children,
       }
     }
 
-    return catTree.map(catNodeToTree)
+    return filterDuplicateInnerwearNodes(sortBrowseTreeRoots(catTree.map(catNodeToTree)))
   }
 
   if (!Array.isArray(stock) || stock.length === 0) return []
@@ -362,7 +396,7 @@ export function buildHierarchyTree(stock, catTree) {
     })
   }
 
-  return mapToNodes(root, [])
+  return sortBrowseTreeRoots(mapToNodes(root, []))
 }
 
 export function getTypeFolder(item) {

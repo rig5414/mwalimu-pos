@@ -2,6 +2,18 @@ import { useState, useMemo } from 'react'
 import { buildHierarchyTree } from '../../lib/hierarchyNav'
 import { posTheme } from '../../styles/posTheme'
 
+function TreeChevron({ open }) {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden style={{ display: 'block', flexShrink: 0 }}>
+      {open ? (
+        <path d="M2 3.5 L5 7 L8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  )
+}
+
 function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activePath }) {
   if (!nodes?.length) return null
   return (
@@ -50,7 +62,7 @@ function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activ
                   style={ts.expandBtn}
                   className="tree-expand-btn"
                 >
-                  <span style={ts.expandIcon}>{open ? '▾' : '▸'}</span>
+                  <TreeChevron open={open} />
                 </button>
               ) : (
                 <span style={ts.expandSpacer} aria-hidden />
@@ -235,28 +247,22 @@ const ts = {
     justifyContent: 'center',
   },
   expandBtn: {
-    width: '28px',
-    height: '28px',
+    width: '30px',
+    height: '30px',
     flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'rgba(255,255,255,0.10)',
-    border: `1px solid ${posTheme.panelBorder}`,
+    background: 'rgba(255,255,255,0.14)',
+    border: `1px solid rgba(255,255,255,0.28)`,
     borderRadius: '6px',
-    color: posTheme.text,
+    color: '#ffffff',
     cursor: 'pointer',
     padding: 0,
     transition: 'background 0.15s',
   },
-  expandIcon: {
-    fontSize: '0.75rem',
-    lineHeight: 1,
-    fontWeight: 700,
-    color: posTheme.text,
-  },
   expandSpacer: {
-    width: '28px',
+    width: '30px',
     flexShrink: 0,
   },
   nodeBtn: {

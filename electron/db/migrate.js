@@ -10,6 +10,7 @@ const {
   migrateLegacyIdsToUuids,
   serializeVariantAttributes,
   findCategoryByName,
+  reconcileInnerwearCategories,
 } = require('./categoryHelpers')
 
 module.exports = function migrate(db) {
@@ -221,6 +222,32 @@ module.exports = function migrate(db) {
     db.exec('PRAGMA user_version = 6')
     version = 6
     console.log('✅ Database upgraded to v6 (add category icon_data BLOB)')
+  }
+
+  if (version < 7) {
+    // Production DBs upgraded through v3 skipped subcategory seeding — add missing taxonomy rows only.
+    seedDefaultSubcategories(db)
+    db.exec('PRAGMA user_version = 7')
+    version = 7
+    console.log('✅ Database upgraded to v7 (seed missing taxonomy subcategories)')
+  }
+
+  if (version < 8) {
+    const result = reconcileInnerwearCategories(db)
+    db.exec('PRAGMA user_version = 8')
+    version = 8
+    if (result.removed > 0) {
+      console.log(`✅ Database upgraded to v8 (reconciled Innerwear duplicates: ${result.removed})`)
+    } else {
+      console.log('✅ Database upgraded to v8 (Innerwear categories already canonical)')
+    }
+  }
+
+  if (version < 9) {
+    const result = reconcileInnerwearCategories(db)
+    db.exec('PRAGMA user_version = 9')
+    version = 9
+    console.log(`✅ Database upgraded to v9 (Innerwear duplicate cleanup: ${result.removed} row(s))`)
   }
 
   const { v4: uuidv4 } = require('uuid')

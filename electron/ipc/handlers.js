@@ -13,6 +13,7 @@ const {
   buildCategoryTreeRows,
   flattenCategoryTree,
   resolveProductCategoryId,
+  isInnerwearAlias,
 } = require('../db/categoryHelpers')
 
 const hashPin = (pin) => crypto.createHash('sha256').update(pin).digest('hex')
@@ -125,11 +126,21 @@ module.exports.register = function (ipcMain, db) {
       list.sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name))
     }
 
-    function walk(parentKey, depth, pathNames) {
-      const nodes = byParent.get(parentKey) || []
+    function walk(parentKey, depth, pathNames, parentRow = null) {
+      let nodes = byParent.get(parentKey) || []
+      let sawInnerwearRoot = false
+      nodes = nodes.filter((c) => {
+        if (parentKey === '__root__' && isInnerwearAlias(c.name)) {
+          if (sawInnerwearRoot) return false
+          sawInnerwearRoot = true
+        }
+        if (parentRow && isInnerwearAlias(parentRow.name) && isInnerwearAlias(c.name)) return false
+        return true
+      })
+
       return nodes.map((c) => {
         const path = [...pathNames, c.name]
-        const children = walk(c.id, depth + 1, path)
+        const children = walk(c.id, depth + 1, path, c)
         const enriched = catMap.get(c.id) || c
         return {
           ...c,

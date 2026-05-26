@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useToast } from '../../hooks/useToast'
 import { buildTreeFromFlat, flattenCategoryTree, optionLabel } from '../../lib/categoryTree'
+import { sortBrowseTreeRoots, filterDuplicateInnerwearNodes } from '../../lib/hierarchyNav'
 import ImageUploader from '../../components/ImageUploader'
 import { useIconDisplay, updateIconCache } from '../../hooks/useIconDisplay'
 
@@ -57,7 +58,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
 }
 
 function CategoryTreeNode({ node, onEdit, onDelete, depth = 0 }) {
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
   const hasChildren = node.children && node.children.length > 0
 
   return (
@@ -132,6 +133,7 @@ function CategoryTreeNode({ node, onEdit, onDelete, depth = 0 }) {
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([])
+  const [browseTree, setBrowseTree] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -143,7 +145,12 @@ export default function CategoriesPage() {
   const [uploadingIcon, setUploadingIcon] = useState(false)
   const toast = useToast()
 
-  const categoryTree = useMemo(() => buildTreeFromFlat(categories), [categories])
+  const categoryTree = useMemo(() => {
+    if (browseTree.length > 0) {
+      return filterDuplicateInnerwearNodes(sortBrowseTreeRoots(browseTree))
+    }
+    return filterDuplicateInnerwearNodes(buildTreeFromFlat(categories))
+  }, [browseTree, categories])
   const parentOptions = useMemo(
     () => flattenCategoryTree(categoryTree, { excludeId: editingId }),
     [categoryTree, editingId]
@@ -156,9 +163,13 @@ export default function CategoriesPage() {
   async function loadCategories() {
     try {
       if (window.api) {
-        const res = await window.api.categories.getAll()
-        if (!res.ok) throw new Error(res.error)
-        setCategories(res.data || [])
+        const [allRes, treeRes] = await Promise.all([
+          window.api.categories.getAll(),
+          window.api.categories.getBrowseTree?.() || Promise.resolve({ ok: false }),
+        ])
+        if (!allRes.ok) throw new Error(allRes.error)
+        setCategories(allRes.data || [])
+        if (treeRes.ok) setBrowseTree(treeRes.data || [])
       }
     } catch (err) {
       toast.error('Failed to load categories: ' + (err.message || 'Unknown error'))
