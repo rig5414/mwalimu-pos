@@ -1,37 +1,36 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../../hooks/useToast'
-import { computeBrowseState } from '../../lib/hierarchyNav'
+import { computeTreeBrowseState } from '../../lib/categoryBrowse'
+import AdminPageHeader from '../../components/admin/AdminPageHeader'
+import { posTheme } from '../../styles/posTheme'
 
 export default function StockPageAdmin() {
-  const [stock, setStock]       = useState([])
-  const [catTree, setCatTree]   = useState(null)
-  const [search, setSearch]     = useState('')
-  const [modal, setModal]       = useState(null) // { type:'add'|'remove', item }
-  const [qty, setQty]           = useState(10)
-  const [path, setPath]         = useState([])
-  const [saving, setSaving]     = useState(false)
+  const [stock, setStock] = useState([])
+  const [catTree, setCatTree] = useState([])
+  const [search, setSearch] = useState('')
+  const [modal, setModal] = useState(null)
+  const [qty, setQty] = useState(10)
+  const [pathIds, setPathIds] = useState([])
+  const [saving, setSaving] = useState(false)
   const toast = useToast()
 
   useEffect(() => {
     if (!window.api) return
     Promise.all([
       window.api.stock.getAll(),
-      window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false })
+      window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false }),
     ]).then(([stockRes, catRes]) => {
-      if (stockRes.ok) setStock(stockRes.data)
-      if (catRes?.ok) setCatTree(catRes.data)
+      if (stockRes.ok) setStock(stockRes.data || [])
+      if (catRes?.ok) setCatTree(catRes.data || [])
     })
   }, [])
 
-  const filtered = stock.filter(
-    (s) =>
-      !search ||
-      s.product_name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.sku?.toLowerCase().includes(search.toLowerCase()) ||
-      s.product_barcode?.toLowerCase().includes(search.toLowerCase())
+  const { viewType, currentLevelItems, breadcrumbs } = computeTreeBrowseState(
+    stock,
+    pathIds,
+    catTree,
+    search
   )
-
-  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search, catTree)
 
   const doStock = async () => {
     setSaving(true)
@@ -42,8 +41,12 @@ export default function StockPageAdmin() {
         if (!res.ok) throw new Error(res.error)
       }
       const delta = modal.type === 'add' ? qty : -qty
-      setStock(prev => prev.map(s => s.id === modal.item.id ? { ...s, stock_qty: s.stock_qty + delta } : s))
-      toast.success(`${modal.type === 'add' ? 'Added' : 'Removed'} ${qty} units for ${modal.item.product_name}`)
+      setStock((prev) =>
+        prev.map((s) => (s.id === modal.item.id ? { ...s, stock_qty: s.stock_qty + delta } : s))
+      )
+      toast.success(
+        `${modal.type === 'add' ? 'Added' : 'Removed'} ${qty} units for ${modal.item.product_name}`
+      )
       setModal(null)
     } catch (err) {
       toast.error(err.message || 'Failed to update stock')
@@ -52,119 +55,170 @@ export default function StockPageAdmin() {
     }
   }
 
-  const stockLevel = (qty) => {
-    if (qty === 0) return 'badge-danger'
-    if (qty <= 5)  return 'badge-warning'
+  const stockLevel = (n) => {
+    if (n === 0) return 'badge-danger'
+    if (n <= 5) return 'badge-warning'
     return 'badge-success'
   }
 
-  return (
-    <div className="h-full overflow-y-auto p-5">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <button 
-              onClick={() => setPath([])}
-              className={`font-head font-bold text-xl transition-colors ${path.length === 0 ? 'text-gray-800' : 'text-gray-400 hover:text-primary cursor-pointer'}`}
-            >
-              Stock Management
-            </button>
-            {path.map((segment, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <span className="text-gray-300 font-bold text-xl">/</span>
-                <button 
-                  onClick={() => setPath(path.slice(0, idx + 1))}
-                  className={`font-head font-bold text-xl transition-colors ${idx === path.length - 1 ? 'text-gray-800' : 'text-gray-400 hover:text-primary cursor-pointer'}`}
-                >
-                  {segment}
-                </button>
-              </div>
-            ))}
-          </div>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {viewType === 'variants' ? `Add or remove stock for specific variants.` : `Select a folder to view stock.`}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200 px-4 py-2.5">
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" strokeLinecap="round"/>
-            </svg>
-            <input className="outline-none text-sm bg-transparent placeholder-gray-400 w-44"
-              placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-        </div>
-      </div>
+  const navigateToCrumb = (index) => {
+    if (index === 0) setPathIds([])
+    else setPathIds(pathIds.slice(0, index))
+  }
 
-      {/* FOLDERS GRID */}
-      {viewType === 'folders' && (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-          {currentLevelItems.map(folder => {
-            const level = stockLevel(folder.total_qty)
-            return (
-              <div 
-                key={folder.id} 
-                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-primary hover:shadow-md transition-all group flex flex-col justify-between"
-                onClick={() => setPath([...path, folder.id])}
+  const openFolder = (folder) => {
+    setPathIds((prev) => [...prev, folder.id])
+  }
+
+  return (
+    <div className="admin-page pos-dark-scroll">
+      <AdminPageHeader
+        eyebrow="Inventory"
+        title="Stock"
+        subtitle={
+          viewType === 'variants'
+            ? 'Adjust quantities for variants at this category level.'
+            : 'Drill into folders — depth follows your category tree.'
+        }
+        actions={
+          <div className="pos-search-bar min-h-[40px] py-1 w-full sm:w-72">
+            <svg
+              className="w-4 h-4 flex-shrink-0"
+              style={{ color: posTheme.textMuted }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              placeholder="Search stock…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        }
+      />
+
+      {breadcrumbs.length > 1 && !search.trim() && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4 text-sm">
+          {breadcrumbs.map((crumb, idx) => (
+            <span key={crumb.id ?? 'root'} className="flex items-center gap-1.5">
+              {idx > 0 && <span style={{ color: posTheme.textMuted }}>/</span>}
+              <button
+                type="button"
+                onClick={() => navigateToCrumb(idx)}
+                className={`font-semibold transition-colors cursor-pointer ${
+                  idx === breadcrumbs.length - 1 ? 'text-white' : 'hover:text-[#e8a020]'
+                }`}
+                style={idx === breadcrumbs.length - 1 ? undefined : { color: posTheme.textMuted }}
               >
-                <div>
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors text-primary">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <p className="font-bold text-sm text-gray-800 mb-0.5 group-hover:text-primary transition-colors line-clamp-1">{folder.name}</p>
-                  <p className="text-xs text-gray-400 mb-4">
-                    {folder.itemsCount} items inside
-                  </p>
-                </div>
-                <div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1.5">
-                    <div className={`h-full rounded-full ${level === 'badge-success' ? 'bg-green-500' : level === 'badge-warning' ? 'bg-orange-400' : 'bg-red-400'} transition-all`}
-                         style={{ width: `${Math.min(100, (folder.total_qty/50)*100)}%` }} />
-                  </div>
-                  <p className={`text-xs font-semibold ${level === 'badge-success' ? 'text-green-600' : level === 'badge-warning' ? 'text-orange-500' : 'text-red-500'}`}>{folder.total_qty} total units</p>
-                </div>
-              </div>
-            )
-          })}
+                {crumb.name}
+              </button>
+            </span>
+          ))}
         </div>
       )}
 
-      {/* VARIANTS GRID */}
-      {viewType === 'variants' && (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-          {currentLevelItems.map(item => {
-            const level = stockLevel(item.stock_qty)
+      {viewType === 'folders' && (
+        <div className="grid gap-3 admin-fade-in" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+          {currentLevelItems.map((folder) => {
+            const level = stockLevel(folder.total_qty)
             return (
-              <div key={item.id} className="bg-white rounded-xl border border-gray-200 p-4 relative overflow-hidden flex flex-col justify-between">
+              <button
+                key={folder.id}
+                type="button"
+                onClick={() => openFolder(folder)}
+                className="admin-glass-panel text-left p-4 cursor-pointer transition-all hover:border-[rgba(232,160,32,0.35)] group flex flex-col justify-between min-h-[140px]"
+              >
                 <div>
-                  <p className="font-bold text-sm text-gray-800 mb-0.5">{item.product_name}</p>
-                  <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5">
-                    {item.color && (
-                      <>
-                        <span className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: item.color_hex || '#ccc' }}></span>
-                        {item.color} · 
-                      </>
-                    )}
-                    Size {item.size}
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 text-xl"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                  >
+                    {folder.icon || '📁'}
+                  </div>
+                  <p className="font-bold text-sm text-white mb-0.5 line-clamp-2">{folder.name}</p>
+                  <p className="text-xs mb-3" style={{ color: posTheme.textMuted }}>
+                    {folder.itemsCount} variant{folder.itemsCount === 1 ? '' : 's'}
+                    {folder.is_leaf ? ' · leaf' : ''}
                   </p>
                 </div>
                 <div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1.5">
-                    <div className={`h-full rounded-full ${level === 'badge-success' ? 'bg-green-500' : level === 'badge-warning' ? 'bg-orange-400' : 'bg-red-400'} transition-all`}
-                         style={{ width: `${Math.min(100, (item.stock_qty/50)*100)}%` }} />
+                  <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    <div
+                      className={`h-full rounded-full ${level === 'badge-success' ? 'bg-green-500' : level === 'badge-warning' ? 'bg-orange-400' : 'bg-red-400'}`}
+                      style={{ width: `${Math.min(100, (folder.total_qty / 50) * 100)}%` }}
+                    />
                   </div>
-                  <p className={`text-xs font-semibold ${level === 'badge-success' ? 'text-green-600' : level === 'badge-warning' ? 'text-orange-500' : 'text-red-500'} mb-3`}>{item.stock_qty} units</p>
+                  <p className={`text-xs font-semibold admin-badge inline-flex ${level}`}>{folder.total_qty} units</p>
+                </div>
+              </button>
+            )
+          })}
+          {currentLevelItems.length === 0 && (
+            <div className="col-span-full admin-glass-panel p-10 text-center text-sm" style={{ color: posTheme.textMuted }}>
+              No folders here yet. Add categories or assign products to see stock.
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewType === 'variants' && (
+        <div className="grid gap-3 admin-fade-in" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+          {currentLevelItems.map((item) => {
+            const level = stockLevel(item.stock_qty)
+            return (
+              <div key={item.id} className="admin-glass-panel p-4 flex flex-col justify-between min-h-[160px]">
+                <div>
+                  <p className="font-bold text-sm text-white mb-0.5">{item.product_name}</p>
+                  <p className="text-xs mb-1" style={{ color: posTheme.textMuted }}>
+                    {(item.category_path || []).join(' › ')}
+                  </p>
+                  <p className="text-xs mb-3 flex items-center gap-1.5" style={{ color: posTheme.textSecondary }}>
+                    {item.color && (
+                      <>
+                        <span
+                          className="w-2.5 h-2.5 rounded-full border border-white/20"
+                          style={{ backgroundColor: item.color_hex || '#ccc' }}
+                        />
+                        {item.color} ·
+                      </>
+                    )}
+                    Size {item.size || '—'}
+                  </p>
+                </div>
+                <div>
+                  <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    <div
+                      className={`h-full rounded-full ${level === 'badge-success' ? 'bg-green-500' : level === 'badge-warning' ? 'bg-orange-400' : 'bg-red-400'}`}
+                      style={{ width: `${Math.min(100, (item.stock_qty / 50) * 100)}%` }}
+                    />
+                  </div>
+                  <p className={`text-xs font-semibold admin-badge inline-flex mb-3 ${level}`}>{item.stock_qty} units</p>
                   <div className="flex gap-2">
-                    <button onClick={() => { setModal({ type:'add', item }); setQty(10) }}
-                      className="flex-1 py-2 bg-primary-light text-primary rounded-lg text-sm font-semibold
-                                 cursor-pointer hover:bg-blue-100 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModal({ type: 'add', item })
+                        setQty(10)
+                      }}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold cursor-pointer pos-btn-gold"
+                    >
                       + Add
                     </button>
-                    <button onClick={() => { setModal({ type:'remove', item }); setQty(1) }}
-                      className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold
-                                 cursor-pointer hover:bg-red-100 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModal({ type: 'remove', item })
+                        setQty(1)
+                      }}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold cursor-pointer admin-cat-action admin-cat-action--danger"
+                    >
                       − Remove
                     </button>
                   </div>
@@ -172,35 +226,58 @@ export default function StockPageAdmin() {
               </div>
             )
           })}
+          {currentLevelItems.length === 0 && (
+            <div className="col-span-full admin-glass-panel p-10 text-center text-sm" style={{ color: posTheme.textMuted }}>
+              {search.trim() ? 'No variants match your search.' : 'No stock at this category level.'}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Stock modal */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center"
-             style={{ background: 'rgba(10,20,40,0.6)' }}
-             onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div className="bg-white rounded-2xl p-7 w-full max-w-xs mx-4 shadow-modal">
-            <h3 className="font-head font-bold text-lg mb-1">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center pos-overlay"
+          onClick={(e) => e.target === e.currentTarget && setModal(null)}
+        >
+          <div className="pos-glass-modal rounded-2xl p-7 w-full max-w-xs mx-4">
+            <h3 className="font-head font-bold text-lg mb-1 text-white">
               {modal.type === 'add' ? '+ Add Stock' : '− Remove Stock'}
             </h3>
-            <p className="text-sm text-gray-400 mb-5">
+            <p className="text-sm mb-5" style={{ color: posTheme.textMuted }}>
               {modal.item.product_name} · {modal.item.color} · Size {modal.item.size}
-              <br /><span className="font-semibold text-gray-600">Current: {modal.item.stock_qty} units</span>
+              <br />
+              <span className="font-semibold text-white/80">Current: {modal.item.stock_qty} units</span>
             </p>
-            <label className="label">Quantity</label>
-            <input type="number" value={qty} min="1"
+            <label className="pos-glass-label">Quantity</label>
+            <input
+              type="number"
+              value={qty}
+              min="1"
               max={modal.type === 'remove' ? modal.item.stock_qty : undefined}
-              onChange={e => setQty(parseInt(e.target.value) || 0)}
-              className="input font-head font-bold text-2xl text-center mb-5" />
+              onChange={(e) => setQty(parseInt(e.target.value, 10) || 0)}
+              className="pos-glass-input font-head font-bold text-2xl text-center mb-5"
+            />
             <div className="flex gap-3">
-              <button onClick={() => setModal(null)}
-                className="flex-1 py-3 rounded-xl border-2 border-gray-200 font-head font-semibold
-                           text-gray-500 cursor-pointer">Cancel</button>
-              <button onClick={doStock} disabled={saving || qty <= 0}
-                className={`flex-[2] py-3 rounded-xl font-head font-bold text-white cursor-pointer
-                            ${modal.type === 'add' ? 'bg-primary hover:bg-primary-dark' : 'bg-red-500 hover:bg-red-600'}
-                            disabled:bg-gray-200 disabled:text-gray-400`}>
+              <button type="button" onClick={() => setModal(null)} className="flex-1 py-3 rounded-xl pos-btn-ghost">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={doStock}
+                disabled={saving || qty <= 0}
+                className={`flex-[2] py-3 rounded-xl font-head font-bold cursor-pointer disabled:opacity-40 ${
+                  modal.type === 'add' ? 'pos-btn-gold' : ''
+                }`}
+                style={
+                  modal.type === 'remove'
+                    ? {
+                        background: 'rgba(248,113,113,0.35)',
+                        color: '#fecaca',
+                        border: '1px solid rgba(248,113,113,0.5)',
+                      }
+                    : {}
+                }
+              >
                 {saving ? 'Saving…' : modal.type === 'add' ? `+ Add ${qty}` : `− Remove ${qty}`}
               </button>
             </div>

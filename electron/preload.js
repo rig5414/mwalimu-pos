@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
     getAll:      ()     => invoke('categories:getAll'),
     getTree:     ()     => invoke('categories:getTree'),
     getLeaves:   ()     => invoke('categories:getLeaves'),
+    getProductLeaves: () => invoke('categories:getProductLeaves'),
     getBrowseTree: ()   => invoke('categories:getBrowseTree'),
     create:      (data) => invoke('categories:create', data),
     update:      (data) => invoke('categories:update', data),
@@ -73,10 +74,12 @@ contextBridge.exposeInMainWorld('api', {
 
   // ── Users (admin only) ────────────────────────────────────────────────────
   users: {
-    getAll:   ()     => invoke('users:getAll'),
-    create:   (data) => invoke('users:create', data),
-    update:   (data) => invoke('users:update', data),
-    delete:   (id)   => invoke('users:delete', id),
+    getAll:       ()     => invoke('users:getAll'),
+    create:       (data) => invoke('users:create', data),
+    update:       (data) => invoke('users:update', data),
+    delete:       (payload) => invoke('users:delete', typeof payload === 'string' ? { id: payload } : payload),
+    restore:      (id)   => invoke('users:restore', id),
+    removeFromUi: (id)   => invoke('users:removeFromUi', id),
   },
 
   // ── Printing ──────────────────────────────────────────────────────────────

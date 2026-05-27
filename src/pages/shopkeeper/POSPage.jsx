@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useCartStore } from '../../store/cartStore'
 import { useAuthStore } from '../../store/authStore'
 import { useDisplayModeStore } from '../../store/displayModeStore'
@@ -9,11 +9,11 @@ import ReceiptModal from '../../components/pos/ReceiptModal'
 import CartPanel from '../../components/pos/CartPanel'
 import HierarchyTreeSidebar from '../../components/pos/HierarchyTreeSidebar'
 import {
-  computeBrowseState,
   getDisplayBreadcrumb,
-  formatPathSegmentForDisplay,
   barcodeMatchesVariant,
+  stockMatchesSearch,
 } from '../../lib/hierarchyNav'
+import { computeTreeBrowseState } from '../../lib/categoryBrowse'
 import { posTheme } from '../../styles/posTheme'
 
 /* ── tiny category icon helper ──────────────────────────────────────────────── */
@@ -74,15 +74,12 @@ export default function POSPage() {
     load()
   }, [reloadFavorites])
 
-  const filtered = stock.filter(
-    (s) =>
-      !search ||
-      s.product_name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.sku?.toLowerCase().includes(search.toLowerCase()) ||
-      s.product_barcode?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = useMemo(() => {
+    if (!search.trim()) return stock
+    return stock.filter((s) => stockMatchesSearch(s, search))
+  }, [stock, search])
 
-  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search, catTree)
+  const { viewType, currentLevelItems, breadcrumbs } = computeTreeBrowseState(filtered, path, catTree, search)
 
   const resolveBarcodeVariant = useCallback(
     (barcode) => stock.find((v) => barcodeMatchesVariant(v, barcode)),
@@ -157,7 +154,6 @@ export default function POSPage() {
     <div style={s.root}>
       {/* ── Left: hierarchy sidebar ─────────────────────────────── */}
       <HierarchyTreeSidebar
-        stock={stock}
         path={path}
         setPath={setPath}
         collapsed={treeCollapsed}
@@ -179,7 +175,7 @@ export default function POSPage() {
             <input
               style={s.searchInput}
               className="pos-search-input"
-              placeholder="Search products by name, SKU or school…"
+              placeholder="Search by name, SKU, barcode, school, or category…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -204,7 +200,7 @@ export default function POSPage() {
           >
             Categories
           </button>
-          {path.map((segment, idx) => (
+          {breadcrumbs?.slice(1).map((crumb, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={s.crumbSep}>›</span>
               <button
@@ -212,7 +208,7 @@ export default function POSPage() {
                 onClick={() => setPath(path.slice(0, idx + 1))}
                 style={{ ...s.crumbBtn, ...(idx === path.length - 1 ? s.crumbActive : s.crumbIdle) }}
               >
-                {formatPathSegmentForDisplay(segment)}
+                {crumb.name}
               </button>
             </div>
           ))}

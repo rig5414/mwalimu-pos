@@ -14,9 +14,37 @@ const {
   flattenCategoryTree,
   resolveProductCategoryId,
   isInnerwearAlias,
+  validateCategoryParent,
+  validateUniqueNameUnderParent,
+  getDescendantIds,
+  getNextSortOrder,
+  getProductAssignableLeaves,
+  assertProductCategoryLeaf,
 } = require('../db/categoryHelpers')
 
 const hashPin = (pin) => crypto.createHash('sha256').update(pin).digest('hex')
+
+function toNodeBuffer(data) {
+  if (data == null) return null
+  if (Buffer.isBuffer(data)) return data
+  if (data instanceof Uint8Array) return Buffer.from(data)
+  if (data?.type === 'Buffer' && Array.isArray(data.data)) return Buffer.from(data.data)
+  if (Array.isArray(data)) return Buffer.from(data)
+  if (typeof data === 'object') {
+    const values = Object.values(data)
+    if (values.length > 0 && typeof values[0] === 'number') return Buffer.from(values)
+  }
+  return Buffer.from(data)
+}
+
+function bufferToIconDataUrl(buffer) {
+  const buf = toNodeBuffer(buffer)
+  if (!buf?.length) return null
+  let mime = 'image/png'
+  if (buf[0] === 0xff && buf[1] === 0xd8) mime = 'image/jpeg'
+  else if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) mime = 'image/png'
+  return `data:${mime};base64,${buf.toString('base64')}`
+}
 
 module.exports.register = function (ipcMain, db) {
 
@@ -205,28 +233,49 @@ module.exports.register = function (ipcMain, db) {
     return flattenCategoryTree(tree, { leavesOnly: true })
   })
 
+  handle('categories:getProductLeaves', () => getProductAssignableLeaves(db))
+
   handle('categories:create', ({ name, parent_id, icon, sort_order, type }) => {
-    const parentRow = parent_id
-      ? db.prepare('SELECT * FROM categories WHERE id = ?').get(parent_id)
+    const parentId = parent_id || null
+    validateCategoryParent(db, null, parentId)
+    const trimmedName = validateUniqueNameUnderParent(db, name, parentId)
+    const parentRow = parentId
+      ? db.prepare('SELECT * FROM categories WHERE id = ?').get(parentId)
       : null
     const id = uuidv4()
     const resolvedType = type || inferCategoryType(parentRow)
+    const resolvedSort = sort_order ?? getNextSortOrder(db, parentId)
     db.prepare(
       'INSERT INTO categories (id, name, parent_id, icon, sort_order, type) VALUES (?,?,?,?,?,?)'
-    ).run(id, name, parent_id || null, icon || null, sort_order || 0, resolvedType)
+    ).run(id, trimmedName, parentId, icon || null, resolvedSort, resolvedType)
     return { id }
   })
 
   handle('categories:update', ({ id, name, parent_id, icon, sort_order, type }) => {
-    const parentRow = parent_id
-      ? db.prepare('SELECT * FROM categories WHERE id = ?').get(parent_id)
+    const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(id)
+    if (!existing) throw new Error('Category not found')
+
+    const parentId = parent_id || null
+    validateCategoryParent(db, id, parentId)
+    const trimmedName = validateUniqueNameUnderParent(db, name, parentId, id)
+
+    const parentRow = parentId
+      ? db.prepare('SELECT * FROM categories WHERE id = ?').get(parentId)
       : null
-    const resolvedType = type || inferCategoryType(parentRow)
+    const parentChanged = (parentId || null) !== (existing.parent_id || null)
+    const resolvedType = type || (parentChanged ? inferCategoryType(parentRow) : (existing.type || inferCategoryType(parentRow)))
     db.prepare(`
       UPDATE categories
       SET name = ?, parent_id = ?, icon = ?, sort_order = ?, type = ?
       WHERE id = ?
-    `).run(name, parent_id || null, icon || null, sort_order || 0, resolvedType, id)
+    `).run(
+      trimmedName,
+      parentId,
+      icon ?? existing.icon ?? null,
+      sort_order ?? existing.sort_order ?? 0,
+      resolvedType,
+      id
+    )
     return { ok: true }
   })
 
@@ -278,12 +327,10 @@ module.exports.register = function (ipcMain, db) {
     if (!allowedMimeTypes.includes(file.type)) {
       throw new Error('Invalid file format. Only JPEG and PNG are allowed.')
     }
-    
-    const buffer = Buffer.from(file.data)
-    
-    // Double validation: check magic bytes/numbers of the file buffer
-    // JPEG: FF D8
-    // PNG: 89 50 4E 47
+
+    const buffer = toNodeBuffer(file.data)
+    if (!buffer?.length) throw new Error('Invalid file data')
+
     const isJpeg = buffer[0] === 0xFF && buffer[1] === 0xD8
     const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47
     if (!isJpeg && !isPng) {
@@ -291,25 +338,14 @@ module.exports.register = function (ipcMain, db) {
     }
 
     db.prepare('UPDATE categories SET icon_data = ? WHERE id = ?').run(buffer, category_id)
-    return { ok: true, size: file.size, mimeType: file.type }
+    const dataUrl = bufferToIconDataUrl(buffer)
+    return { size: file.size, mimeType: isJpeg ? 'image/jpeg' : 'image/png', dataUrl }
   })
 
   handle('categories:getIcon', ({ category_id }) => {
     const row = db.prepare('SELECT icon_data FROM categories WHERE id = ?').get(category_id)
-    if (!row || !row.icon_data) {
-      return null
-    }
-    
-    const buffer = row.icon_data
-    let mime = 'image/png' // fallback
-    if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
-      mime = 'image/jpeg'
-    } else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
-      mime = 'image/png'
-    }
-    
-    const base64 = buffer.toString('base64')
-    return `data:${mime};base64,${base64}`
+    if (!row?.icon_data) return null
+    return bufferToIconDataUrl(row.icon_data)
   })
 
   handle('categories:deleteIcon', ({ category_id }) => {
@@ -333,7 +369,19 @@ module.exports.register = function (ipcMain, db) {
     if (filters.category_id) { query += ' AND p.category_id = ?'; params.push(filters.category_id) }
     if (filters.search) { query += ' AND p.name LIKE ?'; params.push(`%${filters.search}%`) }
     query += ' GROUP BY p.id ORDER BY p.name'
-    return db.prepare(query).all(...params)
+    const rows = db.prepare(query).all(...params)
+    return rows.map((p) => {
+      const path = getCategoryPathNames(db, p.category_id)
+      const school = p.school_id
+        ? db.prepare('SELECT name FROM categories WHERE id = ?').get(p.school_id)
+        : null
+      return {
+        ...p,
+        category_path: path,
+        path_label: path.length ? path.join(' › ') : p.category_name || 'Uncategorized',
+        school_name: school?.name || null,
+      }
+    })
   })
 
   handle('products:getByBarcode', (barcode) => {
@@ -362,6 +410,7 @@ module.exports.register = function (ipcMain, db) {
   })
 
   handle('products:create', ({ name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description, variants }) => {
+    assertProductCategoryLeaf(db, category_id)
     const id = uuidv4()
     const { category_id: catId, subcategory: sub } = normalizeProductCategory(category_id, subcategory)
     try {
@@ -383,21 +432,51 @@ module.exports.register = function (ipcMain, db) {
   })
 
   handle('products:update', ({ id, name, category_id, subcategory, school_id, icon, cost_price, price, barcode, description, is_active, variants }) => {
-    const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(id)
+    const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(id)
     if (!existing) throw new Error('Product not found')
 
-    const { category_id: catId, subcategory: sub } = normalizeProductCategory(category_id, subcategory)
+    const merged = {
+      name: name ?? existing.name,
+      category_id: category_id ?? existing.category_id,
+      subcategory: subcategory !== undefined ? subcategory : existing.subcategory,
+      school_id: school_id !== undefined ? school_id : existing.school_id,
+      icon: icon !== undefined ? icon : existing.icon,
+      cost_price: cost_price !== undefined ? cost_price : existing.cost_price,
+      price: price !== undefined ? price : existing.price,
+      barcode: barcode !== undefined ? barcode : existing.barcode,
+      description: description !== undefined ? description : existing.description,
+      is_active: is_active !== undefined ? is_active : existing.is_active,
+    }
+
+    if (merged.category_id) assertProductCategoryLeaf(db, merged.category_id)
+
+    const { category_id: catId, subcategory: sub } = normalizeProductCategory(
+      merged.category_id,
+      merged.subcategory
+    )
 
     try {
       db.prepare(`
         UPDATE products
         SET name = ?, category_id = ?, subcategory = ?, school_id = ?, icon = ?, cost_price = ?, price = ?, barcode = ?, description = ?, is_active = ?, updated_at = datetime('now')
         WHERE id = ?
-      `).run(name, catId || null, sub || null, school_id || null, icon || null, cost_price || 0, price, barcode || null, description || null, is_active ?? 1, id)
+      `).run(
+        merged.name,
+        catId || null,
+        sub || null,
+        merged.school_id || null,
+        merged.icon || null,
+        merged.cost_price || 0,
+        merged.price,
+        merged.barcode || null,
+        merged.description || null,
+        merged.is_active ?? 1,
+        id
+      )
 
       if (Array.isArray(variants)) {
         db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(id)
-        insertVariants(id, variants, { school_id })
+        insertVariants(id, variants, { school_id: merged.school_id })
       }
       return { ok: true }
     } catch (err) {
@@ -571,6 +650,7 @@ module.exports.register = function (ipcMain, db) {
       JOIN products p ON pv.product_id = p.id
       JOIN categories c ON p.category_id = c.id
       LEFT JOIN categories sch ON p.school_id = sch.id
+      WHERE p.is_active = 1
       ORDER BY p.name, pv.color, pv.size
     `).all()
     return rows.map(enrichStockRow)
@@ -658,6 +738,14 @@ module.exports.register = function (ipcMain, db) {
       )
 
       for (const item of items) {
+        const variant = db.prepare(
+          'SELECT pv.stock_qty, p.is_active, p.name as product_name FROM product_variants pv JOIN products p ON pv.product_id = p.id WHERE pv.id = ?'
+        ).get(item.variant_id)
+        if (!variant) throw new Error('Variant not found')
+        if (!variant.is_active) throw new Error(`"${variant.product_name}" is inactive and cannot be sold`)
+        if (variant.stock_qty < item.quantity) {
+          throw new Error(`Insufficient stock for "${item.product_name}" (have ${variant.stock_qty}, need ${item.quantity})`)
+        }
         insertItem.run(uuidv4(), saleId, item.variant_id, item.product_name,
           item.color, item.size, item.quantity, item.unit_price, item.total_price)
         deductStock.run(item.quantity, item.variant_id)
@@ -691,11 +779,7 @@ module.exports.register = function (ipcMain, db) {
     const params = []
     if (filters.from) { query += ' AND date(s.created_at) >= ?'; params.push(filters.from) }
     if (filters.to)   { query += ' AND date(s.created_at) <= ?'; params.push(filters.to) }
-    if (filters.search && String(filters.search).trim()) {
-      const q = `%${String(filters.search).trim()}%`
-      query += ' AND (s.receipt_no LIKE ? OR IFNULL(s.client_name,"") LIKE ? OR si.product_name LIKE ? OR IFNULL(si.color,"") LIKE ? OR IFNULL(si.size,"") LIKE ?)'
-      params.push(q, q, q, q, q)
-    }
+    // Search is handled client-side on SalesPage (receipt, client, amount).
     query += ' ORDER BY s.created_at DESC LIMIT 200'
     return db.prepare(query).all(...params)
   })
@@ -764,7 +848,10 @@ module.exports.register = function (ipcMain, db) {
   // ── Users ──────────────────────────────────────────────────────────────────
   handle('users:getAll', () => {
     return db.prepare(
-      'SELECT id, name, username, role, is_active, created_at FROM users ORDER BY role, name'
+      `SELECT id, name, username, role, is_active, created_at, deleted_at
+       FROM users
+       WHERE COALESCE(hidden_from_ui, 0) = 0
+       ORDER BY role, name`
     ).all()
   })
 
@@ -776,23 +863,66 @@ module.exports.register = function (ipcMain, db) {
     return { id }
   })
 
-  handle('users:update', ({ id, name, pin, is_active }) => {
+  handle('users:update', ({ id, name, username, role, pin, is_active, actingUserId }) => {
+    const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
+    if (!existing) throw new Error('User not found')
+
+    const finalName = name ?? existing.name
+    const finalUsername = username ?? existing.username
+    const finalRole = role ?? existing.role
+    const finalActive = is_active !== undefined ? is_active : existing.is_active
+
+    if (actingUserId && id === actingUserId && finalActive === 0) {
+      throw new Error('You cannot deactivate your own account')
+    }
+
     if (pin) {
       db.prepare(
-        "UPDATE users SET name=?, pin_hash=?, is_active=?, updated_at=datetime('now') WHERE id=?"
-      ).run(name, hashPin(pin), is_active, id)
+        "UPDATE users SET name=?, username=?, role=?, pin_hash=?, is_active=?, updated_at=datetime('now') WHERE id=?"
+      ).run(finalName, finalUsername, finalRole, hashPin(pin), finalActive, id)
     } else {
       db.prepare(
-        "UPDATE users SET name=?, is_active=?, updated_at=datetime('now') WHERE id=?"
-      ).run(name, is_active, id)
+        "UPDATE users SET name=?, username=?, role=?, is_active=?, updated_at=datetime('now') WHERE id=?"
+      ).run(finalName, finalUsername, finalRole, finalActive, id)
     }
     return { ok: true }
   })
 
-  handle('users:delete', (id) => {
+  const parseUserAction = (arg) => {
+    if (typeof arg === 'string') return { id: arg }
+    if (arg && typeof arg === 'object') return { id: arg.id, actingUserId: arg.actingUserId }
+    return { id: null }
+  }
+
+  handle('users:delete', (arg) => {
+    const { id, actingUserId } = parseUserAction(arg)
+    if (!id) throw new Error('User id required')
+    if (actingUserId && id === actingUserId) {
+      throw new Error('You cannot delete your own account')
+    }
     const user = db.prepare('SELECT id FROM users WHERE id = ?').get(id)
     if (!user) throw new Error('User not found')
-    db.prepare("UPDATE users SET is_active = 0, updated_at = datetime('now') WHERE id = ?").run(id)
+    db.prepare(
+      "UPDATE users SET is_active = 0, deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
+    ).run(id)
+    return { ok: true }
+  })
+
+  handle('users:restore', (id) => {
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(id)
+    if (!user) throw new Error('User not found')
+    db.prepare(
+      "UPDATE users SET is_active = 1, deleted_at = NULL, hidden_from_ui = 0, updated_at = datetime('now') WHERE id = ?"
+    ).run(id)
+    return { ok: true }
+  })
+
+  handle('users:removeFromUi', (id) => {
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(id)
+    if (!user) throw new Error('User not found')
+    db.prepare(
+      "UPDATE users SET is_active = 0, deleted_at = COALESCE(deleted_at, datetime('now')), hidden_from_ui = 1, updated_at = datetime('now') WHERE id = ?"
+    ).run(id)
     return { ok: true }
   })
 
@@ -866,6 +996,7 @@ module.exports.register = function (ipcMain, db) {
       JOIN product_variants pv ON f.variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
       JOIN categories c ON p.category_id = c.id
+      WHERE p.is_active = 1
       ORDER BY f.sort_order ASC, f.created_at ASC
     `).all()
     return rows.map(enrichStockRow)

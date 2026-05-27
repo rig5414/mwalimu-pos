@@ -1,7 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useToast } from '../../hooks/useToast'
-import { computeBrowseState, barcodeMatchesVariant } from '../../lib/hierarchyNav'
+import {
+  barcodeMatchesVariant,
+  getDisplayBreadcrumb,
+  stockMatchesSearch,
+} from '../../lib/hierarchyNav'
+import { buildTreeBreadcrumbs, computeTreeBrowseState } from '../../lib/categoryBrowse'
 import { posTheme } from '../../styles/posTheme'
+import CategoryPicker from '../../components/admin/CategoryPicker'
 
 function stockLevel(q) {
   if (q === 0)
@@ -14,7 +20,7 @@ function stockLevel(q) {
 function GlassModal({ title, subtitle, onClose, children, footer }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pos-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="pos-glass-modal rounded-2xl w-full max-w-md shadow-none max-h-[90vh] overflow-y-auto pos-dark-scroll">
+      <div className="pos-glass-modal rounded-2xl w-full max-w-xl shadow-none max-h-[90vh] overflow-y-auto pos-dark-scroll">
         <div className="p-6 pb-4" style={{ borderBottom: `1px solid ${posTheme.panelBorder}` }}>
           <h3 className="font-head font-bold text-lg text-white">{title}</h3>
           {subtitle && <p className="text-sm mt-1" style={{ color: posTheme.textMuted }}>{subtitle}</p>}
@@ -29,18 +35,17 @@ function GlassModal({ title, subtitle, onClose, children, footer }) {
 export default function StockPageSK() {
   const [stock, setStock] = useState([])
   const [catTree, setCatTree] = useState(null)
+  const [leafCategories, setLeafCategories] = useState([])
   const [search, setSearch] = useState('')
   const [addingTo, setAddingTo] = useState(null)
   const [qty, setQty] = useState(10)
   const [path, setPath] = useState([])
   const [saving, setSaving] = useState(false)
-  const [categories, setCategories] = useState([])
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [qaBarcode, setQaBarcode] = useState('')
   const [qa, setQa] = useState({
     name: '',
     category_id: '',
-    subcategory: '',
     price: '',
     cost_price: '',
     color: '—',
@@ -54,31 +59,32 @@ export default function StockPageSK() {
   useEffect(() => {
     const load = async () => {
       if (window.api) {
-        const [stockRes, catRes] = await Promise.all([
+        const [stockRes, catRes, leavesRes] = await Promise.all([
           window.api.stock.getAll(),
           window.api.categories?.getBrowseTree?.() || Promise.resolve({ ok: false }),
+          window.api.categories.getProductLeaves?.() || Promise.resolve({ ok: false }),
         ])
         if (stockRes.ok) setStock(stockRes.data)
         if (catRes?.ok) setCatTree(catRes.data)
-        const c = await window.api.categories.getAll()
-        if (c.ok && c.data?.length) {
-          setCategories(c.data)
-          setQa((prev) => ({ ...prev, category_id: prev.category_id || c.data[0].id }))
+        if (leavesRes?.ok && leavesRes.data?.length) {
+          setLeafCategories(leavesRes.data)
+          setQa((prev) => ({
+            ...prev,
+            category_id: prev.category_id || leavesRes.data[0].id,
+          }))
         }
       }
     }
     load()
   }, [])
 
-  const filtered = stock.filter(
-    (s) =>
-      !search ||
-      s.product_name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.sku?.toLowerCase().includes(search.toLowerCase()) ||
-      s.product_barcode?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = useMemo(() => {
+    if (!search.trim()) return stock
+    return stock.filter((s) => stockMatchesSearch(s, search))
+  }, [stock, search])
 
-  const { viewType, currentLevelItems } = computeBrowseState(filtered, path, search, catTree)
+  const { viewType, currentLevelItems } = computeTreeBrowseState(filtered, path, catTree, search)
+  const breadcrumbs = useMemo(() => buildTreeBreadcrumbs(catTree, path), [catTree, path])
 
   useEffect(() => {
     const onKey = async (e) => {
@@ -108,7 +114,7 @@ export default function StockPageSK() {
         setQaBarcode(code)
         setQa((prev) => ({
           ...prev,
-          category_id: prev.category_id || categories[0]?.id || '',
+          category_id: prev.category_id || leafCategories[0]?.id || '',
         }))
         setQuickAddOpen(true)
         toast.info('Quick Add Product — new barcode')
@@ -122,11 +128,11 @@ export default function StockPageSK() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [stock, categories, toast, quickAddOpen])
+  }, [stock, leafCategories, toast, quickAddOpen])
 
   const submitQuickAdd = async () => {
     if (!qa.name.trim() || !qa.category_id || Number(qa.price) <= 0) {
-      toast.error('Name, category, and price are required')
+      toast.error('Name, leaf category, and price are required')
       return
     }
     setSaving(true)
@@ -135,7 +141,7 @@ export default function StockPageSK() {
       const res = await window.api.products.create({
         name: qa.name.trim(),
         category_id: qa.category_id,
-        subcategory: qa.subcategory.trim() || null,
+        subcategory: null,
         school_id: null,
         icon: '📦',
         cost_price: Number(qa.cost_price) || 0,
@@ -207,7 +213,7 @@ export default function StockPageSK() {
             >
               Stock
             </button>
-            {path.map((segment, idx) => (
+            {breadcrumbs.slice(1).map((crumb, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <span className="font-bold text-xl" style={{ color: posTheme.textDim }}>
                   /
@@ -218,23 +224,27 @@ export default function StockPageSK() {
                   className="font-head font-bold text-xl transition-colors cursor-pointer"
                   style={{ color: idx === path.length - 1 ? posTheme.text : posTheme.textMuted }}
                 >
-                  {segment}
+                  {crumb.name}
                 </button>
               </div>
             ))}
           </div>
           <p className="text-sm mt-0.5" style={{ color: posTheme.textMuted }}>
             {viewType === 'variants'
-              ? 'Select a variant to add stock. Scan an unknown barcode to quick-add a product.'
+              ? 'Select a variant to add stock. Scan an unknown barcode to quick-add a product (leaf category only).'
               : 'Select a folder. Scan an unknown barcode to quick-add.'}
           </p>
         </div>
-        <div className="pos-search-bar min-w-[200px]">
+        <div className="pos-search-bar min-w-[220px] max-w-md flex-1">
           <svg className="w-4 h-4 flex-shrink-0" style={{ color: posTheme.textMuted }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" strokeLinecap="round" />
           </svg>
-          <input placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input
+            placeholder="Search name, SKU, barcode, school, category…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
       </div>
 
@@ -286,12 +296,18 @@ export default function StockPageSK() {
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
           {currentLevelItems.map((item) => {
             const level = stockLevel(item.stock_qty)
+            const pathLine = getDisplayBreadcrumb(item)
             return (
               <div key={item.id} className="p-4 relative overflow-hidden flex flex-col justify-between" style={cardStyle}>
                 <div>
                   <p className="font-bold text-sm mb-0.5" style={{ color: posTheme.text }}>
                     {item.product_name}
                   </p>
+                  {pathLine ? (
+                    <p className="text-[10px] mb-2 line-clamp-2 leading-snug" style={{ color: posTheme.textMuted }} title={pathLine}>
+                      {pathLine}
+                    </p>
+                  ) : null}
                   <p className="text-xs mb-3 flex items-center gap-1.5" style={{ color: posTheme.textMuted }}>
                     {item.color && (
                       <>
@@ -394,22 +410,12 @@ export default function StockPageSK() {
               <input className="pos-glass-input" value={qa.name} onChange={(e) => setQa({ ...qa, name: e.target.value })} />
             </div>
             <div>
-              <label className="pos-glass-label">Category *</label>
-              <select className="pos-glass-select" value={qa.category_id} onChange={(e) => setQa({ ...qa, category_id: e.target.value })}>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="pos-glass-label">Subcategory</label>
-              <input
-                className="pos-glass-input"
-                value={qa.subcategory}
-                onChange={(e) => setQa({ ...qa, subcategory: e.target.value })}
-                placeholder="e.g. Pullovers"
+              <CategoryPicker
+                value={qa.category_id}
+                onChange={(category_id) => setQa({ ...qa, category_id })}
+                leaves={leafCategories}
+                placeholder="Select leaf category…"
+                hint="Products must sit on a leaf folder (same rule as Admin). Schools branch is excluded — use School Badge on the product in Admin when needed."
               />
             </div>
             <div className="grid grid-cols-2 gap-3">

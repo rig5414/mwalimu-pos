@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { normalizeCategoryIconSrc } from '../lib/categoryIcon'
 
 const iconCache = new Map()
 
@@ -27,9 +28,10 @@ export function useIconDisplay(categoryId, fallbackEmoji) {
         if (window.api?.categories?.getIcon) {
           const res = await window.api.categories.getIcon({ category_id: categoryId })
           if (isMounted) {
-            if (res && res.ok && res.data) {
-              iconCache.set(categoryId, res.data)
-              setImageUrl(res.data)
+            if (res?.ok && res.data) {
+              const dataUrl = normalizeCategoryIconSrc(res.data)
+              iconCache.set(categoryId, dataUrl)
+              setImageUrl(dataUrl)
             } else {
               iconCache.set(categoryId, null)
               setImageUrl(null)
@@ -38,13 +40,9 @@ export function useIconDisplay(categoryId, fallbackEmoji) {
         }
       } catch (err) {
         console.error('Error fetching category icon:', err)
-        if (isMounted) {
-          setImageUrl(null)
-        }
+        if (isMounted) setImageUrl(null)
       } finally {
-        if (isMounted) {
-          setIsLoading(false)
-        }
+        if (isMounted) setIsLoading(false)
       }
     }
 
@@ -55,37 +53,33 @@ export function useIconDisplay(categoryId, fallbackEmoji) {
     }
   }, [categoryId])
 
-  // Listen for real-time updates when an icon is uploaded/deleted
   useEffect(() => {
     if (!categoryId) return
 
     const handleUpdate = (e) => {
-      if (e.detail && e.detail.categoryId === categoryId) {
-        setImageUrl(e.detail.dataUrl)
+      if (e.detail?.categoryId === categoryId) {
+        setImageUrl(normalizeCategoryIconSrc(e.detail.dataUrl))
       }
     }
 
     window.addEventListener('category-icon-updated', handleUpdate)
-    return () => {
-      window.removeEventListener('category-icon-updated', handleUpdate)
-    }
+    return () => window.removeEventListener('category-icon-updated', handleUpdate)
   }, [categoryId])
 
   return { imageUrl, isLoading, fallback: fallbackEmoji || '📂' }
 }
 
-// Function to manually update the cache and trigger real-time updates in other components
 export function updateIconCache(categoryId, dataUrl) {
-  if (dataUrl === null) {
+  const normalized = dataUrl === null ? null : normalizeCategoryIconSrc(dataUrl)
+  if (normalized === null) {
     iconCache.delete(categoryId)
   } else {
-    iconCache.set(categoryId, dataUrl)
+    iconCache.set(categoryId, normalized)
   }
-  
-  // Dispatch a custom event to notify all active hook instances
+
   window.dispatchEvent(
     new CustomEvent('category-icon-updated', {
-      detail: { categoryId, dataUrl },
+      detail: { categoryId, dataUrl: normalized },
     })
   )
 }

@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { buildHierarchyTree } from '../../lib/hierarchyNav'
 import { posTheme } from '../../styles/posTheme'
 
 function TreeChevron({ open }) {
@@ -37,8 +36,8 @@ function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activ
         const key = node.id
         const open = Boolean(expandedNodes[key])
         const isActive =
-          activePath.length === node.path.length &&
-          node.path.every((seg, i) => seg === activePath[i])
+          activePath.length === node.pathIds.length &&
+          node.pathIds.every((seg, i) => seg === activePath[i])
 
         return (
           <li key={key} style={{ marginBottom: '2px' }}>
@@ -69,7 +68,7 @@ function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activ
               )}
               <button
                 type="button"
-                onClick={() => onSelect(node.path)}
+                onClick={() => onSelect(node.pathIds)}
                 style={{
                   ...ts.nodeBtn,
                   ...(isActive ? ts.nodeBtnActive : ts.nodeBtnIdle),
@@ -114,14 +113,26 @@ function TreeRows({ nodes, depth, expandedNodes, toggleExpanded, onSelect, activ
 }
 
 export default function HierarchyTreeSidebar({
-  stock,
   path,
   setPath,
   collapsed,
   onToggleCollapse,
   catTree,
 }) {
-  const tree = useMemo(() => buildHierarchyTree(stock, catTree), [stock, catTree])
+  const tree = useMemo(() => {
+    const attachPathIds = (nodes = [], parentPathIds = []) =>
+      nodes.map((node) => {
+        const pathIds = [...parentPathIds, node.id]
+        return {
+          id: node.id,
+          label: node.name,
+          count: node.product_count ?? 0,
+          pathIds,
+          children: attachPathIds(node.children || [], pathIds),
+        }
+      })
+    return attachPathIds(catTree || [])
+  }, [catTree])
   /** Keys present = expanded. Default empty → all branches collapsed until user expands. */
   const [expandedNodes, setExpandedNodes] = useState({})
 

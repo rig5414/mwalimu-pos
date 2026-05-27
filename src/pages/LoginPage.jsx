@@ -47,9 +47,9 @@ export default function LoginPage() {
         {/* Logo */}
         <div style={styles.logoWrap}>
           <div style={styles.logoBox}>
-            <img src={asset('icon.png')} alt="Mwalimu Uniforms" style={styles.logoImg} />
+            <img src={asset('login_icon.png')} alt="Mwalimu Uniforms" style={styles.logoImg} />
           </div>
-          <h1 style={styles.appName}>Mwalimu Uniforms</h1>
+          <h1 style={styles.appName}>Mwalimu <span style={{ color: '#e8a020' }}>Uniforms</span></h1>
           <p style={styles.appSub}>Point of Sale System</p>
         </div>
 
@@ -200,22 +200,24 @@ const styles = {
     marginBottom: '1.75rem',
   },
   logoBox: {
-    width: '72px',
-    height: '72px',
+    width: '100px',
+    height: '100px',
     borderRadius: '18px',
-    background: 'rgba(255,255,255,0.15)',
-    border: '1px solid rgba(255,255,255,0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    //background: 'rgba(255,255,255,0.15)',
+    //border: '1px solid rgba(255,255,255,0.3)',
+    //display: 'flex',
+    //alignItems: 'center',
+    //justifyContent: 'center',
     margin: '0 auto 0.75rem',
-    overflow: 'hidden',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+    overflow: 'visible',
+    //boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
   },
   logoImg: {
-    width: '100%',
-    height: '100%',
+    width: '120%',
+    height: '120%',
     objectFit: 'cover',
+    marginLeft: '-5%',
+    marginTop: '-35%',
   },
   appName: {
     fontFamily: "'Space Grotesk', sans-serif",
@@ -223,7 +225,8 @@ const styles = {
     fontWeight: 700,
     color: '#ffffff',
     margin: 0,
-    letterSpacing: '-0.3px',
+    marginLeft: '-7px',
+    letterSpacing: '-0.1px',
     textShadow: '0 2px 8px rgba(0,0,0,0.3)',
   },
   appSub: {

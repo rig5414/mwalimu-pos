@@ -27,6 +27,8 @@ module.exports = function migrate(db) {
       pin_hash    TEXT NOT NULL,
       role        TEXT NOT NULL CHECK(role IN ('admin','shopkeeper')),
       is_active   INTEGER NOT NULL DEFAULT 1,
+      deleted_at  TEXT,
+      hidden_from_ui INTEGER NOT NULL DEFAULT 0,
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -248,6 +250,18 @@ module.exports = function migrate(db) {
     db.exec('PRAGMA user_version = 9')
     version = 9
     console.log(`✅ Database upgraded to v9 (Innerwear duplicate cleanup: ${result.removed} row(s))`)
+  }
+
+  if (version < 10) {
+    if (!columnExists('users', 'deleted_at')) {
+      db.exec('ALTER TABLE users ADD COLUMN deleted_at TEXT')
+    }
+    if (!columnExists('users', 'hidden_from_ui')) {
+      db.exec('ALTER TABLE users ADD COLUMN hidden_from_ui INTEGER NOT NULL DEFAULT 0')
+    }
+    db.exec('PRAGMA user_version = 10')
+    version = 10
+    console.log('✅ Database upgraded to v10 (users soft-delete lifecycle columns)')
   }
 
   const { v4: uuidv4 } = require('uuid')

@@ -92,6 +92,90 @@ function parseVariantAttributes(raw) {
   }
 }
 
+function getDescendantIds(db, categoryId) {
+  const ids = new Set()
+  const queue = [categoryId]
+  while (queue.length) {
+    const current = queue.shift()
+    const children = db.prepare('SELECT id FROM categories WHERE parent_id = ?').all(current)
+    for (const child of children) {
+      if (!ids.has(child.id)) {
+        ids.add(child.id)
+        queue.push(child.id)
+      }
+    }
+  }
+  return ids
+}
+
+function validateCategoryParent(db, categoryId, parentId) {
+  if (!parentId) return
+  if (categoryId && parentId === categoryId) {
+    throw new Error('A category cannot be its own parent')
+  }
+  const parent = db.prepare('SELECT id FROM categories WHERE id = ?').get(parentId)
+  if (!parent) throw new Error('Parent category not found')
+  if (categoryId) {
+    const descendants = getDescendantIds(db, categoryId)
+    if (descendants.has(parentId)) {
+      throw new Error('Cannot move a category under one of its own subcategories')
+    }
+  }
+}
+
+function validateUniqueNameUnderParent(db, name, parentId, excludeId = null) {
+  const trimmed = String(name || '').trim()
+  if (!trimmed) throw new Error('Category name is required')
+
+  const existing = findCategoryByName(db, { name: trimmed, parentId: parentId || null })
+  if (existing && existing.id !== excludeId) {
+    const scope = parentId ? 'under this parent' : 'at the top level'
+    throw new Error(`A category named "${trimmed}" already exists ${scope}`)
+  }
+  return trimmed
+}
+
+function getNextSortOrder(db, parentId) {
+  const row = parentId
+    ? db.prepare('SELECT COALESCE(MAX(sort_order), -1) as max_order FROM categories WHERE parent_id = ?').get(parentId)
+    : db.prepare('SELECT COALESCE(MAX(sort_order), -1) as max_order FROM categories WHERE parent_id IS NULL').get()
+  return (row?.max_order ?? -1) + 1
+}
+
+function getRootCategoryName(db, categoryId) {
+  if (!categoryId) return null
+  return getCategoryPathNames(db, categoryId)[0] || null
+}
+
+function isLeafCategory(db, categoryId) {
+  if (!categoryId) return false
+  return !db.prepare('SELECT 1 as ok FROM categories WHERE parent_id = ? LIMIT 1').get(categoryId)
+}
+
+function isSchoolsBranchCategory(db, categoryId) {
+  return getRootCategoryName(db, categoryId) === 'Schools'
+}
+
+function getProductAssignableLeaves(db) {
+  const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all()
+  const tree = buildCategoryTreeRows(rows)
+  return flattenCategoryTree(tree, { leavesOnly: true }).filter(
+    (leaf) => !isSchoolsBranchCategory(db, leaf.id)
+  )
+}
+
+function assertProductCategoryLeaf(db, categoryId) {
+  if (!categoryId) throw new Error('Product category is required')
+  const cat = db.prepare('SELECT id FROM categories WHERE id = ?').get(categoryId)
+  if (!cat) throw new Error('Category not found')
+  if (!isLeafCategory(db, categoryId)) {
+    throw new Error('Product category must be a leaf (deepest folder), e.g. School Uniforms › Pullovers › Plain')
+  }
+  if (isSchoolsBranchCategory(db, categoryId)) {
+    throw new Error('Pick a merchandise category. Use School Badge for school names.')
+  }
+}
+
 function findCategoryByName(db, { name, parentId = null }) {
   if (parentId == null) {
     return db.prepare(
@@ -437,6 +521,10 @@ module.exports = {
   serializeVariantAttributes,
   parseVariantAttributes,
   findCategoryByName,
+  getDescendantIds,
+  validateCategoryParent,
+  validateUniqueNameUnderParent,
+  getNextSortOrder,
   ensureCategory,
   seedDefaultSubcategories,
   migrateProductsToLeafCategories,
@@ -448,6 +536,11 @@ module.exports = {
   resolveProductCategoryId,
   reconcileInnerwearCategories,
   isInnerwearAlias,
+  getProductAssignableLeaves,
+  assertProductCategoryLeaf,
+  isLeafCategory,
+  isSchoolsBranchCategory,
+  getRootCategoryName,
   DEFAULT_SUBCATEGORIES,
   DEFAULT_SCHOOLS,
 }

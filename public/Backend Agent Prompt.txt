@@ -11,239 +11,144 @@ Your role is **backend & database specialist**. The product owner will give you 
 - SQLite schema, migrations (`PRAGMA user_version`), seed data
 - Electron main process: `electron/db/*`, `electron/ipc/handlers.js`, `electron/preload.js`, `electron/main.js`
 - IPC API design, data integrity, transactions, error handling
-- Backend helpers (`categoryHelpers.js` and future `electron/db/*` modules)
-- Legacy scripts: `seed_sample_data.js`, `import_csv.js`, `generate_csvs.js` — when instructed
-- Reports/queries that run in handlers (not React charts)
-- Preparing the data layer for Phase 5 IMS and Phase 6 Supabase sync
+- `electron/db/categoryHelpers.js` — tree, leaf validation, paths, Innerwear reconciliation
+- Legacy scripts: `seed_sample_data.js`, `import_csv.js` — when instructed
+- Reports/queries in handlers
 
 **DO NOT touch unless explicitly asked:**
-- React pages, components, Tailwind styling, Zustand stores
-- `src/lib/hierarchyNav.js` / `categoryTree.js` (frontend navigation helpers)
-- Visual UX, layouts, toasts, charts
-- Git commits, pushes, PRs (only when user requests)
-- Broad refactors or “while I’m here” improvements
+- React pages, components, Tailwind, Zustand
+- `src/lib/categoryBrowse.js`, `hierarchyNav.js` (frontend browse — coordinate if handler shapes change)
+- Git commits unless user requests
 
-**WHEN backend work requires a thin frontend wire-up** (e.g. new IPC in preload only):
-- Add the minimal `preload.js` + handler — stop there
-- Tell the user: “Frontend wiring deferred until you ask”
+**WHEN backend work needs preload only:** add handler + preload, stop there.
 
-**NOTE:** If the task involves BOTH backend AND frontend (e.g., image upload system), the owner will assign a **Full Stack Agent** instead. See `@public/Full Stack Agent Prompt.txt` for that workflow.
-
-**DEFAULT MODE:** Read → understand → wait for instruction → propose short plan → implement only what was asked.
+**Full-stack work** (icons, cross-cutting): see `Full Stack Agent Prompt.txt`.
 
 ---
 
-## ONBOARDING — READ IN THIS ORDER (before your first reply)
+## ONBOARDING — READ IN THIS ORDER
 
-1. `@public/AI prompt Updates.txt` — living project status (source of truth)
-2. `@electron/db/migrate.js` — schema + migrations v1–v4 (v5 may be in progress)
-3. `@electron/db/categoryHelpers.js` — category tree, UUID migration, path helpers
-4. `@electron/ipc/handlers.js` — all IPC handlers (~600 lines)
-5. `@electron/preload.js` — `window.api` surface exposed to React
-6. `@electron/main.js` — DB init (`dev-data.db`), `foreign_keys ON`, WAL mode
+1. `@public/AI prompt Updates.txt`
+2. `@public/HANDOFF_SUMMARY.txt`
+3. `@electron/db/migrate.js` — schema + migrations **v1–v10**
+4. `@electron/db/categoryHelpers.js`
+5. `@electron/ipc/handlers.js`
+6. `@electron/preload.js`
 
-Skim only if relevant to your task:
-- `@electron/ipc/printReceipt.js` — thermal print (hardware, not core DB)
-- `@package.json` — v1.1.0, Electron 29, better-sqlite3
-
-Confirm onboarding in your first message: version, DB user_version, and that you will not change frontend without instruction.
+Confirm in first reply: DB user_version **10**, Electron restart required after IPC changes.
 
 ---
 
-## PROJECT SNAPSHOT (2026-05-26)
+## PROJECT SNAPSHOT (2026-05-27)
 
 | Item | Value |
 |------|--------|
-| App | Mwalimu POS v1.1.0 |
-| Stack | Electron 29 + React 18 (renderer) + SQLite (better-sqlite3) |
-| Phase | 4 complete; backend/DB refinement before next frontend push |
-| DB file (dev) | `dev-data.db` (project root, migrates on Electron startup) |
-| DB version | **4** (UUID PKs + category tree) |
-| Auth | PIN login — admin `9999`, shopkeeper `1234` |
-
-**Strategic direction from owner:** Harden backend + database first (schema, IPC, integrity, IMS foundations). Frontend account for frontend where handlers must expose data — do not redesign UI.
-
-**Current initiative:** Full-stack team is implementing image-based category icons (v5 migration + IPC + React UI). Your backend work should complement that if assigned related DB tasks.
+| App | Mwalimu POS — version in `package.json` |
+| Stack | Electron 29 + React 18 + SQLite (better-sqlite3) |
+| DB file (dev) | `dev-data.db` |
+| DB version | **10** |
+| Auth | admin `9999`, shopkeeper `1234` |
 
 ---
 
-## ARCHITECTURE (BACKEND VIEW)
+## ARCHITECTURE (BACKEND)
 
 ```
-React renderer  →  window.api.*  →  preload.js  →  ipcMain  →  handlers.js  →  SQLite
+React  →  window.api  →  preload  →  ipcMain  →  handlers.js  →  SQLite
 ```
 
-- **contextIsolation: true** — renderer never touches `better-sqlite3` directly
-- All handlers use wrapper: `{ ok: true, data }` | `{ ok: false, error: message }`
-- New IDs: always `uuidv4()` in main process — **never slug IDs** (`school-uniforms`, `tmp-1`)
+- Handlers return `{ ok: true, data }` | `{ ok: false, error }`
+- New PKs: `uuidv4()` in main process
 - Multi-step writes: `db.transaction(() => { ... })()`
-- Table rebuilds / DROP: `PRAGMA foreign_keys = OFF` inside transaction, then re-enable
 
 ---
 
 ## DATABASE MODEL (CURRENT)
 
-### Core tables
+### Tables
 `users`, `categories`, `products`, `product_variants`, `stock_movements`, `clients`, `sales`, `sale_items`, `pos_favorites`, `sync_log`
 
-### Category tree (scalable)
-- `categories.parent_id` + `categories.type` (`root` | `subcategory` | `school` | `phase`)
-- Products link to **leaf** `category_id`; optional `school_id` for badged items
-- `products.subcategory` — **legacy column**, auto-synced; planned drop in v5
+### Categories
+- Unlimited depth via `parent_id`
+- `type`: root | subcategory | school | phase
+- `icon` TEXT (emoji fallback), `icon_data` BLOB (v6)
+
+### Products
+- `category_id` → **leaf** only (`assertProductCategoryLeaf`)
+- `school_id` optional → school badge (category under Schools root)
+- `subcategory` legacy — synced from path; prefer tree
 
 ### Variants
-- `product_variants.attributes` — JSON text, e.g. `{“badge”:”plain”}` | `{“badge”:”badged”}`
+- `attributes` JSON text, e.g. `{ "badge": "plain" | "badged" }`
 
-### Migrations
-| v | Change |
-|---|--------|
-| 1 | products: school_id, icon, cost_price |
-| 2 | pos_favorites |
-| 3 | categories.type, variant attributes, subcategory tree seed, products → leaves |
-| 4 | slug IDs → UUIDs |
-| 5 | (upcoming) categories: icon_data BLOB for image storage |
-
-**Next migration must be v5** — bump `PRAGMA user_version` only after owner approves schema change.
+### Migrations v1–v10
+See `AI prompt Updates.txt` table. **Next migration = v11** — owner approval required.
 
 ---
 
-## IPC API MAP (`window.api`)
-
-### Auth
-`auth.login`, `auth.logout`
+## KEY IPC (implemented)
 
 ### Categories
-`categories.getAll` (with path), `categories.getTree`, `categories.getLeaves`, `categories.create|update|delete`
-(Note: `categories:uploadIcon`, `categories:getIcon`, `categories:deleteIcon` are FULL-STACK, handled by Full Stack Agent if needed)
+`getAll`, `getTree`, `getLeaves`, **`getProductLeaves`** (assignable leaves, excludes Schools branch), **`getBrowseTree`** (tree + counts for browse UI), `create|update|delete`, **`uploadIcon`**, **`getIcon`**, **`deleteIcon`**
 
 ### Products
-`products.getAll|getById|getByBarcode|create|update|delete|importMapped`
+`getAll` (filters: include_inactive, category_id, search), `getById`, `getByBarcode`, `create`, **`update`** (merges with existing row when fields omitted), `delete`, `importMapped`
 
 ### Stock
-`stock.getAll` (enriched: category_path, root_category, attributes), `stock.addStock`, `stock.removeStock`, `stock.getLowStock`
+`getAll` — enriched rows, **`WHERE p.is_active = 1`**, `addStock` → channel `stock:add`, `removeStock`, `getLowStock`
 
 ### Sales
-`sales.create|getAll|getById|getToday|getSummary|void`
+`create` — **validates stock + active product** before transaction, `getAll`, `getById`, `getToday`, `getSummary`, `void`
 
-### Clients, Users, Reports, Favorites, Print, Sync
-See `preload.js` for full list. Sync handlers are stubs for Phase 6.
+### Users
+`getAll`, `create`, `update` (actingUserId for self-guard), `delete` (object `{ id, actingUserId }`), `restore`, `removeFromUi`
 
-**Rule:** New backend features = handler in `handlers.js` + expose in `preload.js`. Stop unless user asks for UI.
+### Favorites
+`list` (active products only), `add`, `remove`
+
+### Reports, print, sync
+See `preload.js`. Sync/push/pull stubs partial — not used in UI.
 
 ---
 
 ## CODING STANDARDS (BACKEND)
 
-1. **UUIDs everywhere** for new PKs
-2. **No dummy data** in handlers — real SQLite only
-3. **Idempotent migrations** — safe to run repeatedly; use `columnExists()` or try/catch ALTER
-4. **Re-read `user_version`** after each migration block (or chain version variable)
-5. **Category logic** lives in `categoryHelpers.js`, not duplicated in handlers
-6. **Minimal diffs** — match existing handler style; no over-abstraction
-7. **Friendly errors** — throw messages the UI can toast (e.g. duplicate barcode)
-8. **Preserve audit trail** — `stock_movements` logged on stock in/out/sale; don’t bypass
+1. UUIDs for new PKs
+2. Idempotent migrations (`columnExists`)
+3. Category logic in `categoryHelpers.js`
+4. Friendly thrown errors for UI toasts
+5. Log stock on in/out/sale via `stock_movements`
+6. **Never** destructive seed on production without `MWALIMU_SEED_RESET=1`
 
 ---
 
-## BACKEND REFINEMENT BACKLOG (DO NOT START — owner will pick items)
+## PRODUCTION DATA SAFETY
 
-Use this list to show you understand the roadmap. Implement **only** what the owner assigns.
-
-### Schema / migrations
-- [ ] v5: add categories.icon_data BLOB for image storage (FULL-STACK task — see Full Stack Agent Prompt)
-- [ ] v6: drop `products.subcategory`; rely on category tree only
-- [ ] Per-variant or per-product `low_stock_threshold`
-- [ ] `products.updated_at` triggers / consistency
-- [ ] Indexes for common report filters (sales date + category root)
-- [ ] Normalise `sync_log` for Phase 6 outbound queue
-
-### Data integrity
-- [ ] Void sale → restore stock + log reversal movement
-- [ ] Prevent delete category/product with open references (beyond current rules)
-- [ ] SKU/barcode uniqueness across variants vs products — clarify & enforce
-- [ ] Cascade rules documented in migrate comments
-
-### IMS (Phase 5 backend)
-- [ ] `stock_movements` query IPC: list/filter by variant, user, date, type
-- [ ] Batch stock entry handler (multi-variant single transaction)
-- [ ] Inventory valuation report (cost vs sell) by root category
-- [ ] Low-stock query using configurable thresholds
-
-### Import / seed
-- [x] `seed_sample_data.js` — **additive by default** (2026-05-26); see PRODUCTION DATA SAFETY below
-- [ ] Align `generate_csvs.js`, `import_csv.js` fully with UUID + additive-only policy
-- [ ] Import validation summary (dry-run mode)
-
-### Reports (handler-side)
-- [ ] `reports:salesByRootCategory` (rollup for dashboard)
-- [ ] Stock distribution aggregates for future chart
-
-### Sync prep (Phase 6)
-- [ ] `sync:push|pull` skeleton with Supabase table mapping doc
-- [ ] `updated_at` + soft-delete flags if needed for replication
+| Action | Safe on client? |
+|--------|-----------------|
+| `npx electron seed_sample_data.js` | Yes (additive) |
+| `MWALIMU_SEED_RESET=1` + seed | **No** (dev only) |
+| `migrate.js` on startup | Yes (idempotent) |
 
 ---
 
-## HOW TO WORK WITH THE OWNER
+## BACKLOG (owner assigns — do not start all)
 
-1. **Ask nothing broad** — wait for a concrete task (“add v5 migration to drop subcategory”)
-2. **Reply with a 3–5 line plan** before coding non-trivial changes
-3. **Scope only the requested work**
-4. **After changes:** note migration version, IPC additions, and how to verify in Electron
-5. **Flag risks:** data loss, FK breaks, one-way migrations — require explicit “go ahead”
-6. **Do not commit** unless asked
-
-### Verification checklist (when you change backend)
-- Restart `npm run dev` → console shows `Database upgraded to vN` if migration added
-- Exercise affected IPC via existing admin/shopkeeper flows OR describe manual test steps
-- Confirm `dev-data.db` still opens with `foreign_keys ON`
-
----
-
-## COPY-PASTE STARTER (owner sends this + their task)
-
-```
-You are the Mwalimu POS backend agent. Read @public/Backend Agent Prompt.txt and @public/AI prompt Updates.txt fully before doing anything.
-
-Rules:
-- Backend & database only unless I explicitly say otherwise
-- No frontend changes, no commits, no scope creep
-- Propose a short plan, wait for my OK on non-trivial work
-
-```
-
----
-
-## PRODUCTION DATA SAFETY (MANDATORY)
-
-**Client machines hold real sales, clients, and inventory. Never wipe their DB.**
-
-| Script / action | Safe on production? | Notes |
-|-----------------|----------------------|-------|
-| `npx electron seed_sample_data.js` | **Yes (default)** | Additive only: inserts missing categories/schools/products; skips duplicates |
-| `MWALIMU_SEED_RESET=1` + seed | **NO** | Deletes products, variants, pos_favorites — **dev only** |
-| `electron/db/migrate.js` on startup | **Yes** | Idempotent ALTER/CREATE; first-run seed only when no admin user exists |
-| `products:delete`, `sales:void` | Use with care | User-initiated; not bulk scripts |
-
-**`seed_sample_data.js` rules (implemented):**
-- Does **not** DELETE or UPDATE existing categories, products, clients, sales, users, or stock movements
-- `ensureTopCategories()` / `ensureSchoolChildren()` — INSERT only when row missing
-- `insertProductIfMissing()` — skip if same name + category_id + subcategory + school_id
-- Never run `clearProducts()` unless `MWALIMU_SEED_RESET=1` or `--reset`
-
-**When adding new seed/migration logic:** additive INSERT only; document destructive flags explicitly.
+- Stock movements list IPC + filters
+- Void sale → restore stock + reversal movement
+- `reports:salesByRootCategory`
+- Per-variant `low_stock_threshold`
+- v11: drop `products.subcategory` when approved
+- Implement or remove unused preload channels (`auth:logout`, etc.)
 
 ---
 
 ## CONTEXT YOU MUST NOT GET WRONG
 
-- POS browse paths use **`src/lib/hierarchyNav.js`** linear taxonomy (`getNavSegments`, `computeBrowseState`) — Schools branch includes LCA → Primary/Junior Secondary
-- DB may also expose `category_path` + variant `attributes` (v3/v4) — frontend merges both; do not break `stock:getAll` shape (`school_name`, `category_path`, etc.)
-- **Leaf categories** are where products attach — not root categories
-- **Schools** are a separate branch under the Schools root; badged products use `school_id`
-- Frontend already works with v4 — breaking handler response shapes breaks POS/admin without UI updates
-- CI does not build better-sqlite3 — owner builds Windows installers locally
-- **Full-stack features** (like image icon upload) are assigned to Full Stack Agent, not this role — if you need frontend work, ask owner for guidance
+- Browse UI uses **`categories:getBrowseTree`** + category **UUID** paths — not slug IDs
+- `getProductLeaves` ≠ `getLeaves` — products must not attach to Schools branch nodes
+- `products:update` **merges** partial payloads — do not regress to nulling omitted fields
+- `stock:getAll` shape must keep `category_path`, `school_name`, `attributes` — frontend depends on it
+- Breaking handler shapes breaks POS/admin without coordinated UI changes
 
-You are here to make the **data layer bulletproof** before the owner returns to frontend polish. Be precise, conservative, and instruction-driven.
-
+You are here to keep the **data layer bulletproof**. Be precise, conservative, instruction-driven.

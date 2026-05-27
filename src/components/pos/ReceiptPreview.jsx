@@ -6,7 +6,7 @@ const METHOD_LABELS = { cash: 'Cash', mpesa: 'M-Pesa', card: 'Card' }
  * Thermal-style receipt body for preview / print CSS.
  * `sale` can be post-checkout object or DB row from sales:getById.
  */
-export default function ReceiptPreview({ sale, className = '' }) {
+export default function ReceiptPreview({ sale, className = '', monochrome = false }) {
   const receiptNo = sale?.receipt_no || sale?.receiptNo || '—'
   const created = sale?.created_at ? new Date(sale.created_at) : new Date()
   const when = format(created, 'EEE d MMM yyyy, HH:mm')
@@ -29,20 +29,22 @@ export default function ReceiptPreview({ sale, className = '' }) {
 
   return (
     <div
-      className={`bg-white text-gray-900 rounded-lg border border-gray-200 shadow-sm px-6 py-6 max-w-sm mx-auto font-mono text-xs leading-relaxed ${className}`}
+      className={`receipt-paper bg-white text-black rounded-lg border shadow-sm px-6 py-6 max-w-sm mx-auto font-mono text-xs leading-relaxed ${className}`}
+      style={{ borderColor: monochrome ? '#00000022' : undefined }}
     >
-      <div className="text-center border-b-2 border-dashed border-gray-200 pb-4 mb-4">
-        <h2 className="font-head font-extrabold text-lg text-primary tracking-tight">MWALIMU UNIFORMS</h2>
-        <p className="text-[11px] text-gray-500 mt-1">Quality School Uniforms & Accessories</p>
-        <p className="text-[10px] text-gray-400">Tel: +254 700 000 000 · Mombasa Road</p>
-        <p className="text-[10px] text-gray-500 mt-2 font-bold">TAX INVOICE</p>
-        <p className="text-[10px] text-gray-400 mt-1">{when}</p>
+      <div className="text-center border-b-2 border-dashed pb-4 mb-4" style={{ borderColor: monochrome ? '#00000033' : undefined }}>
+        <h2 className={`font-head font-extrabold text-lg tracking-tight ${monochrome ? 'text-black' : 'text-primary'}`}>MWALIMU UNIFORMS</h2>
+        <p className={`text-[11px] mt-1 ${monochrome ? 'text-black' : 'text-gray-500'}`}>Quality School Uniforms & Accessories</p>
+        <p className={`text-[10px] ${monochrome ? 'text-black' : 'text-gray-400'}`}>Tel: +254 729 899 174</p>
+        <p className={`text-[10px] ${monochrome ? 'text-black' : 'text-gray-400'}`}>Londiani Town, Kericho</p>
+        <p className={`text-[10px] mt-2 font-bold ${monochrome ? 'text-black' : 'text-gray-500'}`}>TAX INVOICE</p>
+        <p className={`text-[10px] mt-1 ${monochrome ? 'text-black' : 'text-gray-400'}`}>{when}</p>
         <p className="text-[11px] font-bold mt-1">{receiptNo}</p>
       </div>
 
       <table className="w-full text-[11px] mb-3">
         <thead>
-          <tr className="border-b border-gray-200 text-gray-500 uppercase">
+          <tr className="border-b uppercase" style={{ borderColor: monochrome ? '#00000022' : undefined, color: monochrome ? '#000' : undefined }}>
             <th className="text-left pb-2 font-semibold">Item</th>
             <th className="text-center pb-2 font-semibold w-8">Qty</th>
             <th className="text-right pb-2 font-semibold">Total</th>
@@ -50,17 +52,17 @@ export default function ReceiptPreview({ sale, className = '' }) {
         </thead>
         <tbody>
           {items.map((item, idx) => (
-            <tr key={idx} className="border-b border-gray-50 align-top">
+            <tr key={idx} className="border-b align-top" style={{ borderColor: monochrome ? '#00000012' : undefined }}>
               <td className="py-2 pr-2">
-                <p className="font-bold text-gray-800">{item.title}</p>
+                <p className="font-bold text-black">{item.title}</p>
                 {(item.color || item.size) && (
-                  <p className="text-gray-400 text-[10px]">
+                  <p className={`text-[10px] ${monochrome ? 'text-black' : 'text-gray-400'}`}>
                     {item.color}
                     {item.color && item.size ? ' · ' : ''}
                     {item.size ? `Sz ${item.size}` : ''}
                   </p>
                 )}
-                <p className="text-gray-400 text-[10px]">@ KES {item.unit.toLocaleString()}</p>
+                <p className={`text-[10px] ${monochrome ? 'text-black' : 'text-gray-400'}`}>@ KES {item.unit.toLocaleString()}</p>
               </td>
               <td className="py-2 text-center font-bold">{item.qty}</td>
               <td className="py-2 text-right font-bold">KES {item.line.toLocaleString()}</td>
@@ -69,31 +71,31 @@ export default function ReceiptPreview({ sale, className = '' }) {
         </tbody>
       </table>
 
-      <div className="border-t-2 border-dashed border-gray-200 pt-3 space-y-1 text-[11px]">
+      <div className="border-t-2 border-dashed pt-3 space-y-1 text-[11px]" style={{ borderColor: monochrome ? '#00000033' : undefined }}>
         <div className="flex justify-between">
-          <span className="text-gray-500">Customer</span>
+          <span className={monochrome ? 'text-black' : 'text-gray-500'}>Customer</span>
           <span className="font-medium">{client}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Payment</span>
+          <span className={monochrome ? 'text-black' : 'text-gray-500'}>Payment</span>
           <span className="font-medium">{METHOD_LABELS[method] || method}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Subtotal</span>
+          <span className={monochrome ? 'text-black' : 'text-gray-500'}>Subtotal</span>
           <span>KES {Math.max(0, subtotal).toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Tax</span>
+          <span className={monochrome ? 'text-black' : 'text-gray-500'}>Tax</span>
           <span>KES {tax.toLocaleString()}</span>
         </div>
-        <div className="flex justify-between items-baseline pt-2 border-t border-gray-100">
+        <div className="flex justify-between items-baseline pt-2 border-t" style={{ borderColor: monochrome ? '#00000022' : undefined }}>
           <span className="font-bold">TOTAL</span>
-          <span className="font-head font-extrabold text-base text-primary">KES {total.toLocaleString()}</span>
+          <span className={`font-head font-extrabold text-base ${monochrome ? 'text-black' : 'text-primary'}`}>KES {total.toLocaleString()}</span>
         </div>
       </div>
 
-      <div className="text-center mt-4 pt-3 border-t-2 border-dashed border-gray-200 text-[10px] text-gray-500">
-        <p className="font-semibold text-gray-600">Thank you for shopping with us!</p>
+      <div className={`text-center mt-4 pt-3 border-t-2 border-dashed text-[10px] ${monochrome ? 'text-black' : 'text-gray-500'}`} style={{ borderColor: monochrome ? '#00000033' : undefined }}>
+        <p className={`font-semibold ${monochrome ? 'text-black' : 'text-gray-600'}`}>Thank you for shopping with us!</p>
         <p className="mt-1">Exchange within 7 days with receipt</p>
       </div>
     </div>

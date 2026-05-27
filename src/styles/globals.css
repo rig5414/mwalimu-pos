@@ -29,6 +29,7 @@
     background: #f4f6f9;
     color: #1a2332;
     -webkit-user-select: none;
+    user-select: none;
   }
 
   /* Custom scrollbar */
@@ -93,9 +94,28 @@
 }
 
 /* ── Shopkeeper POS dark scrollbars ───────────────────────────────────────── */
+.pos-dark-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+.pos-dark-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.pos-dark-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 10px;
+  border-radius: 999px;
+}
+
 .pos-dark-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  min-height: 36px;
 }
+
 .pos-dark-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.28);
 }
@@ -103,14 +123,14 @@
 /* ── Shopkeeper glass UI (modals, forms, pages) ───────────────────────────── */
 .pos-overlay {
   background: rgba(10, 25, 47, 0.72);
-  backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
 
 .pos-glass-modal {
   background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(22px) saturate(1.6);
   -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
@@ -118,8 +138,8 @@
 .pos-glass-card {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -176,8 +196,8 @@
   border-radius: 16px;
   padding: 0.5rem 1rem;
   min-height: 48px;
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 .pos-search-bar input {
@@ -256,8 +276,8 @@
 .pos-glass-table {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 
 .pos-glass-table thead {
@@ -281,3 +301,562 @@
 .pos-glass-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* ── Admin futuristic shell ─────────────────────────────────────────────────── */
+@keyframes adminMeshShift {
+  0%, 100% { opacity: 0.32; transform: translate(0, 0) scale(1); }
+  50% { opacity: 0.52; transform: translate(-1%, 1%) scale(1.03); }
+}
+
+@keyframes adminFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes adminStatPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 160, 32, 0); }
+  50% { box-shadow: 0 0 24px 2px var(--stat-glow, rgba(232, 160, 32, 0.15)); }
+}
+
+@keyframes adminShimmer {
+  0% { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(220%) skewX(-12deg); }
+}
+
+.admin-shell {
+  background: radial-gradient(circle at 20% 0%, rgba(31, 74, 125, 0.55) 0%, transparent 38%),
+    radial-gradient(circle at 85% 25%, rgba(232, 160, 32, 0.16) 0%, transparent 32%),
+    linear-gradient(162deg, #07101d 0%, #0a1a30 42%, #0e2846 74%, #0a1425 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-shell::before {
+  content: none;
+}
+
+.admin-shell::after {
+  content: '';
+  position: absolute;
+  inset: auto -18% -42% auto;
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(80, 141, 212, 0.2) 0%, rgba(80, 141, 212, 0.05) 44%, transparent 72%);
+  filter: blur(28px);
+  animation: adminMeshShift 14s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.admin-sidebar {
+  width: min(240px, 22vw);
+  min-width: 200px;
+  flex-shrink: 0;
+  background: rgba(8, 20, 36, 0.58);
+  border-right: 0;
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  margin: 0.15rem 0.65rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.admin-nav-link:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-nav-link-active {
+  color: #e8a020 !important;
+  background: rgba(232, 160, 32, 0.12) !important;
+  border-color: rgba(232, 160, 32, 0.35) !important;
+  box-shadow: 0 0 20px rgba(232, 160, 32, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.admin-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-topbar {
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  border-bottom: 0;
+  background: rgba(8, 20, 36, 0.42);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.admin-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+.admin-fade-in {
+  animation: adminFadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.admin-fade-in-delay-1 { animation-delay: 0.06s; }
+.admin-fade-in-delay-2 { animation-delay: 0.12s; }
+.admin-fade-in-delay-3 { animation-delay: 0.18s; }
+.admin-fade-in-delay-4 { animation-delay: 0.24s; }
+
+.admin-stat-card {
+  background: rgba(255, 255, 255, 0.11);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: adminFadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both, adminStatPulse 4s ease-in-out 1.2s infinite;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-stat-link:hover .admin-stat-card {
+  transform: translateY(-3px);
+  border-color: var(--stat-border, rgba(232, 160, 32, 0.4));
+}
+
+.admin-stat-shine::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.12) 50%, transparent 60%);
+  animation: adminShimmer 2.8s ease-in-out infinite;
+}
+
+.admin-glass-panel {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.admin-view-toggle {
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-view-toggle button {
+  padding: 0.5rem 1rem;
+  min-height: 40px;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.18s ease;
+}
+
+.admin-view-toggle button.active {
+  background: rgba(232, 160, 32, 0.2);
+  color: #e8a020;
+  box-shadow: 0 0 16px rgba(232, 160, 32, 0.15);
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.admin-badge-success {
+  background: rgba(74, 222, 128, 0.18);
+  color: #bbf7d0;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+}
+
+.admin-badge-warning {
+  background: rgba(232, 160, 32, 0.18);
+  color: #fde68a;
+  border: 1px solid rgba(232, 160, 32, 0.35);
+}
+
+.admin-badge-danger {
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.admin-badge-info {
+  background: rgba(56, 189, 248, 0.15);
+  color: #bae6fd;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+/* Scoped light→dark overrides for legacy admin markup */
+.admin-page .bg-white,
+.admin-page .bg-gray-50 {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Keep receipt paper truly printable (solid white) inside admin modals. */
+.admin-page .receipt-paper {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+.admin-page .border-gray-200,
+.admin-page .border-gray-100,
+.admin-page .border-gray-300 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-page .text-gray-800,
+.admin-page .text-gray-900,
+.admin-page .text-gray-700 {
+  color: #ffffff !important;
+}
+
+.admin-page .text-gray-600 {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.admin-page .text-gray-500,
+.admin-page .text-gray-400 {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.admin-page .text-gray-300 {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.admin-page .text-primary {
+  color: #e8a020 !important;
+}
+
+.admin-page .bg-primary-light {
+  background: rgba(232, 160, 32, 0.15) !important;
+  color: #e8a020 !important;
+}
+
+.admin-page .hover\:bg-gray-50:hover,
+.admin-page .hover\:bg-gray-100:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-page .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-page .input,
+.admin-page input[type='text'],
+.admin-page input[type='number'],
+.admin-page input[type='date'],
+.admin-page input[type='tel'],
+.admin-page select,
+.admin-page textarea {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.admin-page .input::placeholder,
+.admin-page input::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.admin-page .label {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.admin-page .badge-success {
+  background: rgba(74, 222, 128, 0.18) !important;
+  color: #bbf7d0 !important;
+}
+
+.admin-page .badge-warning {
+  background: rgba(232, 160, 32, 0.18) !important;
+  color: #fde68a !important;
+}
+
+.admin-page .badge-danger {
+  background: rgba(248, 113, 113, 0.18) !important;
+  color: #fecaca !important;
+}
+
+.admin-page .badge-info {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #bae6fd !important;
+}
+
+.admin-page .btn-primary {
+  background: linear-gradient(135deg, #e8a020 0%, #f5b93a 100%) !important;
+  color: #1a2332 !important;
+}
+
+.admin-page .btn-secondary {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.admin-page .card {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2) !important;
+}
+
+.admin-page .bg-purple-100 { background: rgba(168, 85, 247, 0.18) !important; }
+.admin-page .text-purple-700 { color: #e9d5ff !important; }
+.admin-page .bg-blue-100 { background: rgba(56, 189, 248, 0.15) !important; }
+.admin-page .text-blue-700 { color: #bae6fd !important; }
+.admin-page .bg-green-100 { background: rgba(74, 222, 128, 0.15) !important; }
+.admin-page .text-green-700 { color: #bbf7d0 !important; }
+.admin-page .bg-amber-100 { background: rgba(232, 160, 32, 0.15) !important; }
+.admin-page .text-amber-700 { color: #fde68a !important; }
+.admin-page .bg-gray-100 { background: rgba(255, 255, 255, 0.1) !important; }
+.admin-page .text-gray-600 { color: rgba(255, 255, 255, 0.55) !important; }
+
+.admin-page .bg-gray-900 {
+  background: rgba(232, 160, 32, 0.25) !important;
+  color: #e8a020 !important;
+}
+
+.admin-page .hover\:bg-gray-800:hover {
+  background: rgba(232, 160, 32, 0.35) !important;
+}
+
+/* Categories admin — tree rows & slide-over drawer */
+.admin-category-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.admin-category-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.75rem 0.65rem 0.75rem 1rem;
+  margin-right: 0.15rem;
+  scrollbar-gutter: stable;
+}
+
+.admin-category-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.admin-category-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-category-row-toggle {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+}
+
+.admin-category-row-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.admin-category-children {
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  margin-left: 1.35rem;
+}
+
+.admin-cat-action {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-cat-action:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.admin-cat-action--add {
+  border-color: rgba(74, 222, 128, 0.35);
+  color: #bbf7d0;
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.admin-cat-action--edit {
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #bae6fd;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.admin-cat-action--danger {
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.admin-category-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(10, 25, 47, 0.62);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  animation: adminFadeUp 0.22s ease both;
+}
+
+.admin-category-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: min(440px, 100vw);
+  display: flex;
+  flex-direction: column;
+  animation: adminDrawerSlide 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.admin-category-drawer-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(165deg, rgba(15, 40, 69, 0.97) 0%, rgba(10, 25, 47, 0.98) 100%);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: -12px 0 48px rgba(0, 0, 0, 0.45);
+}
+
+.admin-category-drawer-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.25rem 1rem 1.25rem 1.25rem;
+  margin-right: 0.2rem;
+  scrollbar-gutter: stable;
+}
+
+@keyframes adminDrawerSlide {
+  from {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.admin-glass-uploader .admin-uploader-dropzone {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.admin-glass-uploader .admin-uploader-dropzone:hover {
+  border-color: rgba(232, 160, 32, 0.45) !important;
+  background: rgba(232, 160, 32, 0.06) !important;
+}
+
+.admin-glass-uploader .admin-uploader-title {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.admin-glass-uploader .admin-uploader-hint {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.admin-glass-uploader .admin-uploader-success {
+  background: rgba(74, 222, 128, 0.12) !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+  color: #bbf7d0 !important;
+}
+
+.admin-page .text-blue-600,
+.admin-page .text-blue-50 {
+  color: #bae6fd !important;
+}
+
+.admin-page .bg-blue-50 {
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+
+.admin-page .text-green-600,
+.admin-page .text-red-600 {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.admin-page .bg-green-50,
+.admin-page .bg-red-50 {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-page .hover\:bg-blue-100:hover,
+.admin-page .hover\:bg-green-100:hover,
+.admin-page .hover\:bg-red-100:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
+.admin-page .hover\:bg-gray-200:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-badge-purple {
+  background: rgba(168, 85, 247, 0.18);
+  color: #e9d5ff;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+

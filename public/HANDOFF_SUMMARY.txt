@@ -1,9 +1,9 @@
 # Mwalimu POS — Agent Handoff Summary
 
-**Last updated:** 2026-05-26 (end of Phase 4 taxonomy + POS polish)
-**App version:** v1.1.0
-**Database:** PRAGMA user_version = 4 (UUID category tree; see migrate.js)
-**Dev DB:** `dev-data.db` in project root (Electron startup runs migrations)
+**Last updated:** 2026-05-27
+**App version:** see `package.json` (owner bumps before release)
+**Database:** PRAGMA user_version = **10** (see `electron/db/migrate.js`)
+**Dev DB:** `dev-data.db` in project root (migrations run on Electron startup)
 
 ---
 
@@ -13,58 +13,53 @@
 |----------|------|---------|
 | 1 | `public/AI prompt Updates.txt` | Living status, completed work, architecture |
 | 2 | Role brief | `Backend Agent Prompt.txt` / `Frontend Agent Prompt.txt` / `Full Stack Agent Prompt.txt` |
-| 3 | `src/lib/hierarchyNav.js` | **Linear taxonomy** — POS tree, browse paths, breadcrumbs |
-| 4 | `electron/ipc/handlers.js` + `electron/preload.js` | All `window.api` IPC |
-| 5 | `electron/db/migrate.js` | Schema + migrations (first-run seed only when DB empty) |
+| 3 | `src/lib/categoryBrowse.js` | **ID-based** POS/admin stock browse (`computeTreeBrowseState`) |
+| 4 | `src/lib/hierarchyNav.js` | Search, breadcrumbs, barcode match, legacy name helpers |
+| 5 | `electron/ipc/handlers.js` + `electron/preload.js` | All `window.api` IPC |
+| 6 | `electron/db/migrate.js` | Schema + migrations v1–v10 |
 
 **Logins (dev):** Admin `admin` / `9999` · Shopkeeper `shopkeeper` / `1234`
 
 ---
 
-## What was completed recently (2026-05-26)
+## What was completed recently (2026-05-27)
 
-### Linear category taxonomy
-- Navigation follows strict subdivision paths in `src/lib/hierarchyNav.js`:
-  - **School Uniforms / Games / Footwear / Innerwear / Beddings:** `[Category → Subcategory → Product]`
-  - **Schools → Londiani Christian Academy:** `[Schools → LCA → Primary | Junior Secondary → Product]`
-  - **Other schools:** `[Schools → School name → Product]`
-- Sidebar tree, POS grid, and stock pages share `computeBrowseState()` + `getNavSegments()`.
-- Variant cards show breadcrumb path (e.g. `Schools › LCA › Primary`).
+### Admin console (glass theme)
+- **Products:** modal create/edit, search, pagination (10/20/40/50/All), leaf `CategoryPicker`, path labels in table
+- **Categories:** unlimited-depth tree CRUD (cycle/duplicate guards), slide-over drawer, search, collapsed-by-default tree
+- **Users:** edit modal; block self-deactivate/delete; IPC `actingUserId` on delete
+- **Sales:** client-side search (receipt, client, amount); backend search SQL bug fixed
+- **Stock:** ID-based tree browse (same engine as shopkeeper)
+- **Dashboard:** KPIs + recharts (existing)
 
-### POS UI (Visily-inspired)
-- Dark glass theme (`src/styles/posTheme.js`), hierarchy sidebar, cart, favorites bar.
-- **Touch / Dense** display mode (persisted in `displayModeStore`).
-- Single-click variant → add 1 to cart; barcode scan support.
+### Shopkeeper (POS + stock)
+- **Browse:** `path` = array of **category UUIDs** via `computeTreeBrowseState` + `categories:getBrowseTree`
+- **Sidebar:** `HierarchyTreeSidebar` uses `catTree` IDs (`pathIds`), collapsed by default
+- **Search:** `stockMatchesSearch()` — name, SKU, barcode, school, category path, breadcrumb
+- **Stock quick-add:** leaf-only `CategoryPicker` + `categories:getProductLeaves` (Schools branch excluded)
 
-### Hierarchy sidebar default
-- **Tree branches start collapsed.** User expands with ▸ / ▾.
-- Implementation: `HierarchyTreeSidebar.jsx` uses `expandedNodes` (empty = all collapsed).
+### Backend / release hardening
+- `products:update` merges with existing row (partial updates e.g. active toggle no longer wipe `school_id`)
+- `stock:getAll` + `favorites:list` → active products only (`p.is_active = 1`)
+- `sales:create` validates stock qty + active product before deducting
+- Category icons: `icon_data` BLOB (v6), `uploadIcon` / `getIcon` / `deleteIcon` IPC
 
-### Production-safe seeding
-- `seed_sample_data.js` is **additive by default** — never deletes client data.
-- Only inserts missing categories, school nodes, and products (skip if same name+category+subcategory+school).
-- **Does not touch:** `clients`, `sales`, `sale_items`, `users`, `stock_movements`.
-- Dev-only wipe: `MWALIMU_SEED_RESET=1 npx electron seed_sample_data.js` or `--reset`.
-
-### Phase 4 (earlier)
-- Sales master–detail, dashboard KPIs + recharts, thermal print + simulation, CSV import, POS favorites, stock quick-add.
-
----
-
-## In progress / next (owner decision)
-
-- **Category icons:** Moving from emoji to image upload (`icon_data` BLOB, v5 migration) — see Full Stack Agent Prompt.
-- Phase 5: stock audit trail UI, per-product low-stock thresholds.
+### Still deferred / known gaps
+- Category **icon preview** in admin drawer can be flaky (blob/IPC) — non-blocking
+- Plain/Badged as separate browse folders (name-based) — products live on **leaf** categories; badge via `school_id` + variant `attributes`
+- CSV import path matching still basic; prefer admin UI for new products
+- Unused preload stubs: `auth:logout`, `sync:push/pull`, `reports:stock`, `print:test` (no UI calls)
 
 ---
 
 ## Critical rules for any agent
 
 1. **No dummy data** in production pages — use `window.api` only.
-2. **Never run destructive seed on client machines** without explicit `MWALIMU_SEED_RESET`.
+2. **Never run destructive seed** on client DB without `MWALIMU_SEED_RESET=1`.
 3. **UUIDs** for all new DB rows in main process (`uuidv4()`).
-4. **Do not commit** unless the user asks.
-5. **Backend vs frontend:** stay in your role brief unless assigned Full Stack work.
+4. **Products on leaf categories only** — `assertProductCategoryLeaf`; Schools branch not assignable as product category.
+5. **IPC/main-process changes** require full Electron restart (not Vite HMR alone).
+6. **Do not commit** unless the user asks.
 
 ---
 
@@ -73,7 +68,7 @@
 ```bash
 npm run dev                          # Vite + Electron
 npx electron seed_sample_data.js     # Additive catalog seed (safe)
-# Dev-only catalog reset:
+# Dev-only catalog wipe:
 # MWALIMU_SEED_RESET=1 npx electron seed_sample_data.js
 npm run build:win                    # Windows installer
 ```
@@ -83,10 +78,10 @@ npm run build:win                    # Windows installer
 ## Assigning the next agent
 
 **Backend-only:**
-> Read `@public/Backend Agent Prompt.txt` and `@public/AI prompt Updates.txt`. Confirm DB v4 and additive seed policy. [Your task].
+> Read `@public/Backend Agent Prompt.txt` and `@public/AI prompt Updates.txt`. Confirm DB v10. [Your task].
 
 **Frontend-only:**
 > Read `@public/Frontend Agent Prompt.txt` and `@public/AI prompt Updates.txt`. Test in Electron (`npm run dev`). [Your task].
 
-**Full-stack (e.g. category image icons):**
-> Read `@public/Full Stack Agent Prompt.txt` fully. [Your task].
+**Full-stack:**
+> Read `@public/Full Stack Agent Prompt.txt`. [Your task].

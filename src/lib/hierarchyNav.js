@@ -217,11 +217,8 @@ export function getNavSegments(row) {
     const badge = attrs.badge || (row.school_id ? 'badged' : 'plain')
     const typeLabel = badge === 'badged' ? 'Badged' : 'Plain'
 
-    if (path.length >= 2) {
-      return [path[0], path[1], typeLabel, product]
-    }
-    const sub = normalizeSubcategory(path[0], row.subcategory)
-    return [path[0], sub, typeLabel, product]
+    // Full DB path to the leaf category, then Plain/Badged, then product (unlimited depth)
+    return [...path, typeLabel, product]
   }
 
   const cat = normalizeCategoryName(row.category_name || row.root_category || 'Uncategorized')
@@ -259,6 +256,23 @@ export function formatPathSegmentForDisplay(segment) {
 
 export function getDisplayBreadcrumb(row) {
   return getFolderSegments(row).map(formatPathSegmentForDisplay).join(' › ')
+}
+
+/** Client-side POS/stock search: name, codes, school, category path, breadcrumb. */
+export function stockMatchesSearch(row, rawQuery) {
+  const q = String(rawQuery || '').trim().toLowerCase()
+  if (!q) return true
+  const pathStr = Array.isArray(row.category_path) ? row.category_path.join(' ').toLowerCase() : ''
+  const crumb = getDisplayBreadcrumb(row).toLowerCase()
+  return (
+    row.product_name?.toLowerCase().includes(q) ||
+    row.sku?.toLowerCase().includes(q) ||
+    row.product_barcode?.toLowerCase().includes(q) ||
+    (row.school_name && String(row.school_name).toLowerCase().includes(q)) ||
+    (row.category_name && String(row.category_name).toLowerCase().includes(q)) ||
+    pathStr.includes(q) ||
+    crumb.includes(q)
+  )
 }
 
 function sortByTaxonomyOrder(keys, orderList) {
@@ -475,13 +489,7 @@ function buildFoldersFromCatTree(catTree, path, filteredStock) {
  */
 export function computeBrowseState(filteredStock, path, search, catTree) {
   if (search && String(search).trim()) {
-    const q = String(search).toLowerCase()
-    const rows = filteredStock.filter(
-      (s) =>
-        s.product_name?.toLowerCase().includes(q) ||
-        s.sku?.toLowerCase().includes(q) ||
-        s.product_barcode?.toLowerCase().includes(q)
-    )
+    const rows = filteredStock.filter((s) => stockMatchesSearch(s, search))
     return { viewType: 'variants', currentLevelItems: rows.map((item) => ({ ...item, isVariant: true })) }
   }
 

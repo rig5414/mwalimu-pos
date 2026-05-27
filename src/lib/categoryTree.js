@@ -1,10 +1,38 @@
 /** Flatten nested category tree for select options and admin UI. */
 
-export function flattenCategoryTree(tree, { leavesOnly = false, excludeId = null } = {}) {
+export function collectDescendantIds(tree, targetId) {
+  const ids = new Set()
+  let found = false
+
+  function collect(node) {
+    ids.add(node.id)
+    for (const child of node.children || []) collect(child)
+  }
+
+  function walk(nodes) {
+    for (const node of nodes || []) {
+      if (node.id === targetId) {
+        collect(node)
+        found = true
+        return true
+      }
+      if (node.children?.length && walk(node.children)) return true
+    }
+    return false
+  }
+
+  walk(tree)
+  return found ? ids : new Set()
+}
+
+export function flattenCategoryTree(tree, { leavesOnly = false, excludeId = null, excludeIds = null } = {}) {
+  const blocked = excludeIds instanceof Set ? excludeIds : new Set()
+  if (excludeId) blocked.add(excludeId)
+
   const out = []
   function visit(nodes, depth = 0) {
     for (const n of nodes || []) {
-      if (n.id === excludeId) continue
+      if (blocked.has(n.id)) continue
       const row = { ...n, depth }
       if (!leavesOnly || n.is_leaf) out.push(row)
       if (n.children?.length) visit(n.children, depth + 1)
